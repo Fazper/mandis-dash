@@ -53,6 +53,10 @@
 .money-card.lucid .money-number { color: var(--accent-purple); }
 .money-card.roi { border-top: 3px solid var(--accent-green); }
 .money-card.roi .money-number { color: var(--accent-green); }
+.money-card.green { border-top: 3px solid var(--accent-green); }
+.money-card.green .money-number { color: var(--accent-green); }
+.money-card.red { border-top: 3px solid var(--accent-red); }
+.money-card.red .money-number { color: var(--accent-red); }
 
 /* Money Card Colors */
 .money-card.orange { border-left-color: var(--accent-orange); }
@@ -305,4 +309,47 @@
     .expense-form button {
         width: 100%;
     }
+}
+
+/* Money Tabs */
+.money-tabs {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 20px;
+}
+
+.money-tabs .tab-btn {
+    background: var(--bg-secondary);
+    border: 1px solid var(--border);
+    color: var(--text-muted);
+    padding: 10px 24px;
+    border-radius: 8px;
+    font-size: 0.9rem;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.money-tabs .tab-btn:hover {
+    border-color: var(--border-light);
+    color: var(--text-secondary);
+}
+
+.money-tabs .tab-btn.active {
+    background: var(--bg-card);
+    border-color: var(--accent-blue);
+    color: var(--text-primary);
+}
+
+/* Payout Specific Styles */
+.add-payout h4::before {
+    background: var(--accent-green);
+}
+
+.payout-history h4::before {
+    background: var(--accent-green);
+}
+
+.payout-item .payout-amount {
+    color: var(--accent-green) !important;
 }

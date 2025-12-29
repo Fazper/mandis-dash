@@ -1,6 +1,7 @@
 import { useMemo } from 'react';
 import { useDashboard } from '../context/DashboardContext';
 import { ProjectionEngine } from '../utils/projections';
+import { FinancialTracker } from '../utils/financials';
 import {
     BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
     PieChart, Pie, Cell, Legend,
@@ -26,7 +27,7 @@ const STATUS_COLORS = {
 };
 
 export default function Stats() {
-    const { state, firms, accountTypes, accounts, expenses, calculateMoneyStats, getTotalPassed, calculatePotentialPayout } = useDashboard();
+    const { state, firms, accountTypes, accounts, expenses, payouts, calculateMoneyStats, getTotalPassed, calculatePotentialPayout } = useDashboard();
 
     // Guard against undefined data during initial load
     if (!firms || !accountTypes || !accounts) {
@@ -125,12 +126,22 @@ export default function Stats() {
         });
         const yearlyProjection = engine.generateYearlyProjection();
 
-        return { expensesByMonth, statusData, firmExpenseData, yearlyProjection };
-    }, [expenses, accounts, accountTypes, firms, state.payoutStartDate, passRateCalc]);
+        // Actual financials using FinancialTracker
+        const tracker = new FinancialTracker({
+            expenses: expensesList,
+            payouts: payouts || [],
+            accountTypes,
+            firms
+        });
+        const actualFinancials = tracker.getCumulativeMonthlyFinancials();
+
+        return { expensesByMonth, statusData, firmExpenseData, yearlyProjection, actualFinancials };
+    }, [expenses, payouts, accounts, accountTypes, firms, state.payoutStartDate, passRateCalc]);
 
     const hasExpenses = chartData.expensesByMonth.length > 0;
     const hasAccounts = chartData.statusData.length > 0;
     const hasFirmExpenses = chartData.firmExpenseData.length > 0;
+    const hasActualData = chartData.actualFinancials.length > 0;
 
     return (
         <div className="stats-tab">
@@ -226,6 +237,71 @@ export default function Stats() {
                             </ResponsiveContainer>
                         ) : (
                             <div className="chart-empty">No accounts yet</div>
+                        )}
+                    </div>
+                </section>
+
+                {/* Actual Financials - Expenses vs Payouts */}
+                <section className="chart-section">
+                    <h2>Actual: Expenses vs Payouts</h2>
+                    <div className="chart-container">
+                        {hasActualData ? (
+                            <ResponsiveContainer width="100%" height={250}>
+                                <ComposedChart data={chartData.actualFinancials}>
+                                    <defs>
+                                        <linearGradient id="colorActualPayouts" x1="0" y1="0" x2="0" y2="1">
+                                            <stop offset="5%" stopColor={COLORS.green} stopOpacity={0.3}/>
+                                            <stop offset="95%" stopColor={COLORS.green} stopOpacity={0}/>
+                                        </linearGradient>
+                                        <linearGradient id="colorActualExpenses" x1="0" y1="0" x2="0" y2="1">
+                                            <stop offset="5%" stopColor={COLORS.red} stopOpacity={0.3}/>
+                                            <stop offset="95%" stopColor={COLORS.red} stopOpacity={0}/>
+                                        </linearGradient>
+                                    </defs>
+                                    <CartesianGrid strokeDasharray="3 3" stroke="#374151" />
+                                    <XAxis dataKey="month" stroke="#9ca3af" fontSize={12} />
+                                    <YAxis stroke="#9ca3af" fontSize={12} tickFormatter={(v) => `$${(v/1000).toFixed(0)}k`} />
+                                    <Tooltip
+                                        contentStyle={{ background: '#1f2937', border: '1px solid #374151', borderRadius: 8 }}
+                                        formatter={(value, name) => [
+                                            `$${value.toLocaleString()}`,
+                                            name === 'cumulativePayouts' ? 'Total Payouts' : name === 'cumulativeExpenses' ? 'Total Expenses' : 'Net Profit'
+                                        ]}
+                                    />
+                                    <Area
+                                        type="monotone"
+                                        dataKey="cumulativePayouts"
+                                        stroke={COLORS.green}
+                                        strokeWidth={2}
+                                        fillOpacity={1}
+                                        fill="url(#colorActualPayouts)"
+                                    />
+                                    <Area
+                                        type="monotone"
+                                        dataKey="cumulativeExpenses"
+                                        stroke={COLORS.red}
+                                        strokeWidth={2}
+                                        fillOpacity={1}
+                                        fill="url(#colorActualExpenses)"
+                                    />
+                                    <Line
+                                        type="monotone"
+                                        dataKey="cumulativeNet"
+                                        stroke={COLORS.blue}
+                                        strokeWidth={3}
+                                        dot={{ fill: COLORS.blue, strokeWidth: 2, r: 4 }}
+                                    />
+                                    <Legend
+                                        formatter={(value) => (
+                                            <span style={{ color: '#e5e7eb' }}>
+                                                {value === 'cumulativePayouts' ? 'Total Payouts' : value === 'cumulativeExpenses' ? 'Total Expenses' : 'Net Profit'}
+                                            </span>
+                                        )}
+                                    />
+                                </ComposedChart>
+                            </ResponsiveContainer>
+                        ) : (
+                            <div className="chart-empty">No financial data yet - add expenses and payouts</div>
                         )}
                     </div>
                 </section>

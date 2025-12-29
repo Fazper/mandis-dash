@@ -24,6 +24,7 @@ export function DashboardProvider({ children }) {
 
     const [settings, setSettings] = useState(defaultSettings);
     const [expenses, setExpenses] = useState([]);
+    const [payouts, setPayouts] = useState([]);
     const [dailyLog, setDailyLog] = useState([]);
     const [goals, setGoals] = useState([]);
     const [goalCompletions, setGoalCompletions] = useState([]);
@@ -47,6 +48,7 @@ export function DashboardProvider({ children }) {
                 loadSettings(),
                 loadAccounts(loadedTypes),
                 loadExpenses(),
+                loadPayouts(),
                 loadDailyLogs(),
                 loadGoals()
             ]);
@@ -684,6 +686,84 @@ export function DashboardProvider({ children }) {
         toast.success(`Deleted expense: $${expense?.amount?.toFixed(2) || '0.00'}`);
     };
 
+    // ============ PAYOUTS ============
+    const loadPayouts = async () => {
+        const { data } = await supabase
+            .from('payouts')
+            .select('*')
+            .eq('user_id', user.id)
+            .order('date', { ascending: false });
+
+        if (data) {
+            setPayouts(data.map(p => ({
+                id: p.id,
+                accountTypeId: p.account_type_id,
+                firmId: p.firm_id,
+                amount: parseFloat(p.amount),
+                note: p.note,
+                date: p.date
+            })));
+        }
+    };
+
+    const addPayout = async (accountTypeId, amount, note = '', date = null) => {
+        const dateToUse = date || new Date().toISOString().split('T')[0];
+        const accountType = accountTypes[accountTypeId];
+        const firmId = accountType?.firmId || null;
+
+        const { data: newPayout, error } = await supabase
+            .from('payouts')
+            .insert({
+                user_id: user.id,
+                account_type_id: accountTypeId || null,
+                firm_id: firmId,
+                amount: parseFloat(amount),
+                note,
+                date: dateToUse
+            })
+            .select()
+            .single();
+
+        if (error) {
+            console.error('Add payout error:', error);
+            toast.error(`Failed to add payout: ${error.message}`);
+            return false;
+        }
+
+        setPayouts(prev => {
+            const newP = {
+                id: newPayout.id,
+                accountTypeId: accountTypeId || null,
+                firmId,
+                amount: parseFloat(amount),
+                note,
+                date: dateToUse
+            };
+            return [...prev, newP].sort((a, b) => b.date.localeCompare(a.date));
+        });
+
+        toast.success(`Added payout: $${parseFloat(amount).toLocaleString()}`);
+        return true;
+    };
+
+    const deletePayout = async (payoutId) => {
+        const payout = payouts.find(p => p.id === payoutId);
+
+        const { error } = await supabase
+            .from('payouts')
+            .delete()
+            .eq('id', payoutId);
+
+        if (error) {
+            console.error('Delete payout error:', error);
+            toast.error(`Failed to delete payout: ${error.message}`);
+            return;
+        }
+
+        setPayouts(prev => prev.filter(p => p.id !== payoutId));
+        toast.success(`Deleted payout: $${payout?.amount?.toLocaleString() || '0'}`);
+    };
+
     // ============ DAILY LOGS ============
     const loadDailyLogs = async () => {
         const { data } = await supabase
@@ -991,6 +1071,7 @@ export function DashboardProvider({ children }) {
     const state = {
         accounts,
         expenses,
+        payouts,
         dailyLog,
         settings,
         payoutStartDate: settings.payoutStartDate
@@ -1024,6 +1105,10 @@ export function DashboardProvider({ children }) {
             expenses,
             addExpense,
             deleteExpense,
+            // Payouts
+            payouts,
+            addPayout,
+            deletePayout,
             // Goals
             goals,
             addGoal,
