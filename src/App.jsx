@@ -2,6 +2,7 @@ import { BrowserRouter, Routes, Route, NavLink, Navigate } from 'react-router-do
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { DashboardProvider } from './context/DashboardContext';
 import { ToastProvider } from './context/ToastContext';
+import ErrorBoundary from './components/ErrorBoundary';
 import Login from './components/Login';
 import Header from './components/Header';
 import Dashboard from './components/Dashboard';
@@ -45,13 +46,15 @@ function AppContent() {
                     </NavLink>
                 </nav>
                 <main className="tab-content">
-                    <Routes>
-                        <Route path="/dashboard" element={<Dashboard />} />
-                        <Route path="/money" element={<MoneyTracker />} />
-                        <Route path="/projections" element={<Projections />} />
-                        <Route path="/stats" element={<Stats />} />
-                        <Route path="*" element={<Navigate to="/dashboard" replace />} />
-                    </Routes>
+                    <ErrorBoundary>
+                        <Routes>
+                            <Route path="/dashboard" element={<Dashboard />} />
+                            <Route path="/money" element={<MoneyTracker />} />
+                            <Route path="/projections" element={<Projections />} />
+                            <Route path="/stats" element={<Stats />} />
+                            <Route path="*" element={<Navigate to="/dashboard" replace />} />
+                        </Routes>
+                    </ErrorBoundary>
                 </main>
             </div>
         </DashboardProvider>

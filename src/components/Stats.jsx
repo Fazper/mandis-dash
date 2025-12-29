@@ -3,12 +3,21 @@ import { useDashboard } from '../context/DashboardContext';
 export default function Stats() {
     const { firms, accountTypes, accounts, expenses, calculateMoneyStats, getTotalPassed, calculatePotentialPayout } = useDashboard();
 
+    // Guard against undefined data during initial load
+    if (!firms || !accountTypes || !accounts) {
+        return (
+            <div className="stats-tab">
+                <div className="loading-state">Loading statistics...</div>
+            </div>
+        );
+    }
+
     const stats = calculateMoneyStats();
     const totalPassed = getTotalPassed();
     const potentialPayouts = calculatePotentialPayout();
 
     // Calculate pass rate from expenses (count eval purchases)
-    const evalExpenses = expenses.filter(e => accountTypes[e.type]);
+    const evalExpenses = (expenses || []).filter(e => accountTypes[e.type]);
     const totalEvals = evalExpenses.length;
     const passRateCalc = totalEvals > 0 ? ((totalPassed / totalEvals) * 100).toFixed(0) : 0;
 
