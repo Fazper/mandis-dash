@@ -1,0 +1,413 @@
+/* Firms Configuration */
+.firms-config {
+    margin-bottom: 32px;
+}
+
+.firms-config h2 {
+    font-size: 1.25rem;
+    font-weight: 600;
+    margin-bottom: 16px;
+}
+
+.firms-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+    gap: 16px;
+}
+
+.firm-card {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 16px;
+    transition: all 0.2s;
+}
+
+.firm-card:hover {
+    border-color: var(--border-light);
+}
+
+.firm-card.orange { border-left: 3px solid var(--accent-orange); }
+.firm-card.purple { border-left: 3px solid var(--accent-purple); }
+.firm-card.blue { border-left: 3px solid var(--accent-blue); }
+.firm-card.green { border-left: 3px solid var(--accent-green); }
+.firm-card.red { border-left: 3px solid var(--accent-red); }
+.firm-card.teal { border-left: 3px solid #14b8a6; }
+
+.firm-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 12px;
+}
+
+.firm-header h4 {
+    font-size: 1rem;
+    font-weight: 600;
+}
+
+.firm-actions {
+    display: flex;
+    gap: 8px;
+}
+
+.firm-actions .edit-btn {
+    background: var(--bg-secondary);
+    border: 1px solid var(--border);
+    color: var(--text-secondary);
+    padding: 4px 12px;
+    border-radius: 6px;
+    font-size: 0.75rem;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.firm-actions .edit-btn:hover {
+    background: var(--bg-card-hover);
+    color: var(--text-primary);
+}
+
+.firm-actions .delete-btn {
+    background: transparent;
+    border: 1px solid var(--border);
+    color: var(--text-muted);
+    width: 24px;
+    height: 24px;
+    border-radius: 6px;
+    font-size: 1rem;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s;
+}
+
+.firm-actions .delete-btn:hover {
+    background: var(--accent-red-dim);
+    border-color: var(--accent-red);
+    color: var(--accent-red);
+}
+
+.firm-details {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 8px;
+}
+
+.firm-stat {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.firm-stat .label {
+    font-size: 0.7rem;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.firm-stat .value {
+    font-size: 0.9rem;
+    font-weight: 500;
+}
+
+.firm-badge {
+    grid-column: 1 / -1;
+    margin-top: 8px;
+    padding: 4px 8px;
+    background: var(--accent-purple-dim);
+    color: var(--accent-purple);
+    font-size: 0.7rem;
+    border-radius: 4px;
+    text-align: center;
+}
+
+.add-firm-btn {
+    background: var(--bg-card);
+    border: 2px dashed var(--border);
+    border-radius: 12px;
+    padding: 24px;
+    color: var(--text-muted);
+    font-size: 0.9rem;
+    cursor: pointer;
+    transition: all 0.2s;
+    min-height: 150px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.add-firm-btn:hover {
+    border-color: var(--accent-green);
+    color: var(--accent-green);
+    background: var(--accent-green-dim);
+}
+
+/* Firm Form Overlay */
+.firm-form-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0, 0, 0, 0.8);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 1000;
+    padding: 24px;
+}
+
+.firm-form {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    padding: 24px;
+    width: 100%;
+    max-width: 500px;
+    max-height: 90vh;
+    overflow-y: auto;
+}
+
+.firm-form h3 {
+    font-size: 1.25rem;
+    font-weight: 600;
+    margin-bottom: 20px;
+}
+
+.form-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+    margin-bottom: 16px;
+}
+
+.firm-form .form-field {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.firm-form .form-field label {
+    font-size: 0.8rem;
+    color: var(--text-secondary);
+}
+
+.firm-form .form-field input[type="text"],
+.firm-form .form-field input[type="number"] {
+    background: var(--bg-secondary);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 10px 12px;
+    color: var(--text-primary);
+    font-size: 0.9rem;
+    width: 100%;
+}
+
+.firm-form .form-field input:focus {
+    outline: none;
+    border-color: var(--accent-green);
+}
+
+.checkbox-field {
+    display: flex;
+    align-items: center !important;
+    flex-direction: row !important;
+    gap: 8px !important;
+}
+
+.checkbox-field label {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    cursor: pointer;
+    font-size: 0.85rem !important;
+    color: var(--text-primary) !important;
+}
+
+.checkbox-field input[type="checkbox"] {
+    width: 18px;
+    height: 18px;
+    accent-color: var(--accent-green);
+}
+
+/* Color Picker */
+.color-picker {
+    display: flex;
+    gap: 8px;
+}
+
+.color-option {
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    border: 2px solid transparent;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.color-option.selected {
+    border-color: var(--text-primary);
+    transform: scale(1.1);
+}
+
+.color-option.orange { background: var(--accent-orange); }
+.color-option.purple { background: var(--accent-purple); }
+.color-option.blue { background: var(--accent-blue); }
+.color-option.green { background: var(--accent-green); }
+.color-option.red { background: var(--accent-red); }
+.color-option.teal { background: #14b8a6; }
+
+.form-actions {
+    display: flex;
+    gap: 12px;
+    margin-top: 24px;
+}
+
+.form-actions .cancel-btn {
+    flex: 1;
+    padding: 12px;
+    background: var(--bg-secondary);
+    border: 1px solid var(--border);
+    color: var(--text-secondary);
+    border-radius: 8px;
+    font-size: 0.9rem;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.form-actions .cancel-btn:hover {
+    background: var(--bg-card-hover);
+}
+
+.form-actions .save-btn {
+    flex: 1;
+    padding: 12px;
+    background: var(--accent-green);
+    border: none;
+    color: var(--bg-primary);
+    border-radius: 8px;
+    font-size: 0.9rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.form-actions .save-btn:hover {
+    opacity: 0.9;
+}
+
+/* Delete Confirmation Modal */
+.delete-confirm-modal {
+    background: var(--bg-card);
+    border: 1px solid var(--accent-red);
+    border-radius: 16px;
+    padding: 24px;
+    width: 100%;
+    max-width: 450px;
+}
+
+.delete-confirm-modal h3 {
+    font-size: 1.25rem;
+    font-weight: 600;
+    margin-bottom: 16px;
+    color: var(--accent-red);
+}
+
+.delete-confirm-modal .warning-text {
+    color: var(--text-secondary);
+    margin-bottom: 12px;
+}
+
+.accounts-to-delete {
+    list-style: none;
+    background: var(--bg-secondary);
+    border-radius: 8px;
+    padding: 12px;
+    margin-bottom: 16px;
+    max-height: 200px;
+    overflow-y: auto;
+}
+
+.accounts-to-delete li {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 0;
+    border-bottom: 1px solid var(--border);
+}
+
+.accounts-to-delete li:last-child {
+    border-bottom: none;
+}
+
+.accounts-to-delete .acc-name {
+    flex: 1;
+    font-weight: 500;
+}
+
+.accounts-to-delete .acc-status {
+    font-size: 0.75rem;
+    padding: 2px 8px;
+    border-radius: 4px;
+    text-transform: capitalize;
+}
+
+.accounts-to-delete .acc-status.in-progress {
+    background: var(--accent-blue-dim);
+    color: var(--accent-blue);
+}
+
+.accounts-to-delete .acc-status.passed {
+    background: var(--accent-green-dim);
+    color: var(--accent-green);
+}
+
+.accounts-to-delete .acc-status.funded {
+    background: var(--accent-green-dim);
+    color: var(--accent-green);
+}
+
+.accounts-to-delete .acc-status.failed {
+    background: var(--accent-red-dim);
+    color: var(--accent-red);
+}
+
+.accounts-to-delete .acc-cost {
+    font-size: 0.8rem;
+    color: var(--text-muted);
+}
+
+.delete-confirm-modal .warning-note {
+    color: var(--accent-red);
+    font-size: 0.85rem;
+    margin-bottom: 20px;
+}
+
+.delete-confirm-btn {
+    flex: 1;
+    padding: 12px;
+    background: var(--accent-red);
+    border: none;
+    color: var(--text-primary);
+    border-radius: 8px;
+    font-size: 0.9rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.delete-confirm-btn:hover {
+    opacity: 0.9;
+}
+
+@media (max-width: 768px) {
+    .form-row {
+        grid-template-columns: 1fr;
+    }
+
+    .firms-grid {
+        grid-template-columns: 1fr;
+    }
+}

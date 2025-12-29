@@ -19,8 +19,10 @@ export default function MoneyTracker() {
     const [expenseType, setExpenseType] = useState(Object.keys(firms)[0] || 'other');
     const [expenseAmount, setExpenseAmount] = useState('');
     const [expenseNote, setExpenseNote] = useState('');
+    const [expenseDate, setExpenseDate] = useState(new Date().toISOString().split('T')[0]);
     const [showAddFirm, setShowAddFirm] = useState(false);
     const [editingFirm, setEditingFirm] = useState(null);
+    const [deleteConfirm, setDeleteConfirm] = useState(null); // { firmId, accounts }
 
     const stats = calculateMoneyStats();
     const totalPassed = getTotalPassed();
@@ -29,9 +31,24 @@ export default function MoneyTracker() {
 
     const handleAddExpense = () => {
         if (!expenseAmount) return;
-        addExpense(expenseType, expenseAmount, expenseNote);
+        addExpense(expenseType, expenseAmount, expenseNote, expenseDate);
         setExpenseAmount('');
         setExpenseNote('');
+        setExpenseDate(new Date().toISOString().split('T')[0]);
+    };
+
+    const handleDeleteFirm = async (firmId) => {
+        const result = await deleteFirm(firmId);
+        if (result?.needsConfirmation) {
+            setDeleteConfirm({ firmId, accounts: result.accounts });
+        }
+    };
+
+    const confirmDeleteFirm = async () => {
+        if (deleteConfirm) {
+            await deleteFirm(deleteConfirm.firmId, true);
+            setDeleteConfirm(null);
+        }
     };
 
     // Build expense type options dynamically
@@ -82,9 +99,18 @@ export default function MoneyTracker() {
                             key={firm.id}
                             firm={firm}
                             onEdit={() => setEditingFirm(firm)}
-                            onDelete={() => deleteFirm(firm.id)}
+                            onDelete={() => handleDeleteFirm(firm.id)}
                         />
                     ))}
+
+                {deleteConfirm && (
+                    <DeleteConfirmModal
+                        firmName={firms[deleteConfirm.firmId]?.name}
+                        accounts={deleteConfirm.accounts}
+                        onConfirm={confirmDeleteFirm}
+                        onCancel={() => setDeleteConfirm(null)}
+                    />
+                )}
                     <button className="add-firm-btn" onClick={() => setShowAddFirm(true)}>
                         + Add Account Type
                     </button>
@@ -142,6 +168,11 @@ export default function MoneyTracker() {
                             value={expenseAmount}
                             onChange={(e) => setExpenseAmount(e.target.value)}
                             step="0.01"
+                        />
+                        <input
+                            type="date"
+                            value={expenseDate}
+                            onChange={(e) => setExpenseDate(e.target.value)}
                         />
                         <input
                             type="text"
@@ -366,4 +397,33 @@ function formatExpenseType(type, firms) {
         return `${firms[activationMatch[1]].name} Activation`;
     }
     return type === 'other' ? 'Other' : type;
+}
+
+function DeleteConfirmModal({ firmName, accounts, onConfirm, onCancel }) {
+    return (
+        <div className="firm-form-overlay">
+            <div className="delete-confirm-modal">
+                <h3>Delete {firmName}?</h3>
+                <p className="warning-text">
+                    This will permanently delete {accounts.length} account{accounts.length !== 1 ? 's' : ''}:
+                </p>
+                <ul className="accounts-to-delete">
+                    {accounts.map(acc => (
+                        <li key={acc.id}>
+                            <span className="acc-name">{acc.name}</span>
+                            <span className={`acc-status ${acc.status}`}>{acc.status}</span>
+                            {acc.evalCost > 0 && <span className="acc-cost">${acc.evalCost}</span>}
+                        </li>
+                    ))}
+                </ul>
+                <p className="warning-note">This action cannot be undone.</p>
+                <div className="form-actions">
+                    <button type="button" className="cancel-btn" onClick={onCancel}>Cancel</button>
+                    <button type="button" className="delete-confirm-btn" onClick={onConfirm}>
+                        Delete {firmName} & {accounts.length} Account{accounts.length !== 1 ? 's' : ''}
+                    </button>
+                </div>
+            </div>
+        </div>
+    );
 }

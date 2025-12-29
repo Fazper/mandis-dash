@@ -1,0 +1,24 @@
+/* Design System Variables */
+:root {
+    --bg-primary: #0a0a0a;
+    --bg-secondary: #111111;
+    --bg-card: #1a1a1a;
+    --bg-card-hover: #222222;
+    --border: #2a2a2a;
+    --border-light: #333333;
+
+    --text-primary: #ffffff;
+    --text-secondary: #a0a0a0;
+    --text-muted: #666666;
+
+    --accent-green: #00ff88;
+    --accent-green-dim: rgba(0, 255, 136, 0.15);
+    --accent-red: #ff3b3b;
+    --accent-red-dim: rgba(255, 59, 59, 0.15);
+    --accent-orange: #ff9500;
+    --accent-orange-dim: rgba(255, 149, 0, 0.15);
+    --accent-blue: #0088ff;
+    --accent-blue-dim: rgba(0, 136, 255, 0.15);
+    --accent-purple: #a855f7;
+    --accent-purple-dim: rgba(168, 85, 247, 0.15);
+}

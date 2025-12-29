@@ -1,35 +1,161 @@
 import { useState } from 'react';
+import { NavLink } from 'react-router-dom';
 import { useDashboard } from '../context/DashboardContext';
 
 export default function Dashboard() {
-    const { state, firms, addAccountWithCost, updateAccountStatus, updateAccountBalance, updateAccountProfitTarget, deleteAccount, getFirmLimit } = useDashboard();
+    const { state, firms, addAccountWithCost, updateAccountStatus, updateAccountBalance, updateAccountProfitTarget, deleteAccount, getFirmLimit, goals, addGoal, deleteGoal, toggleGoalCompletion, getTodaysGoals } = useDashboard();
+    const [showGoalForm, setShowGoalForm] = useState(false);
+    const [goalForm, setGoalForm] = useState({
+        title: '',
+        description: '',
+        goalType: 'daily',
+        targetCount: 1,
+        actionType: 'custom',
+        firmId: '',
+        endDate: ''
+    });
+
+    const hasFirms = Object.keys(firms).length > 0;
+    const todaysGoals = getTodaysGoals();
+
+    const handleAddGoal = async () => {
+        if (!goalForm.title.trim()) return;
+
+        await addGoal({
+            ...goalForm,
+            firmId: goalForm.firmId || null,
+            endDate: goalForm.endDate || null
+        });
+
+        setGoalForm({
+            title: '',
+            description: '',
+            goalType: 'daily',
+            targetCount: 1,
+            actionType: 'custom',
+            firmId: '',
+            endDate: ''
+        });
+        setShowGoalForm(false);
+    };
+
+    // Show empty state if no firms configured
+    if (!hasFirms) {
+        return (
+            <div className="dashboard-tab">
+                <div className="empty-state">
+                    <div className="empty-icon">🏦</div>
+                    <h2>No Account Types Configured</h2>
+                    <p>You need to set up your account types (firms) before you can start tracking accounts.</p>
+                    <NavLink to="/money" className="setup-btn">
+                        Go to Money Tab to Add Account Types
+                    </NavLink>
+                </div>
+            </div>
+        );
+    }
 
     return (
         <div className="dashboard-tab">
             <section className="daily-goals">
-                <h2>Today's Tasks</h2>
+                <div className="section-header">
+                    <h2>Today's Goals</h2>
+                    <button className="add-goal-btn" onClick={() => setShowGoalForm(!showGoalForm)}>
+                        {showGoalForm ? '−' : '+'} Add Goal
+                    </button>
+                </div>
+
+                {showGoalForm && (
+                    <div className="goal-form">
+                        <div className="goal-form-row">
+                            <div className="form-field">
+                                <label>Goal Title</label>
+                                <input
+                                    type="text"
+                                    value={goalForm.title}
+                                    onChange={(e) => setGoalForm(prev => ({ ...prev, title: e.target.value }))}
+                                    placeholder="e.g., Pass 1 account"
+                                />
+                            </div>
+                            <div className="form-field">
+                                <label>Type</label>
+                                <select
+                                    value={goalForm.goalType}
+                                    onChange={(e) => setGoalForm(prev => ({ ...prev, goalType: e.target.value }))}
+                                >
+                                    <option value="daily">Daily</option>
+                                    <option value="weekly">Weekly</option>
+                                    <option value="one-time">One-time</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div className="goal-form-row">
+                            <div className="form-field">
+                                <label>Auto-complete when</label>
+                                <select
+                                    value={goalForm.actionType}
+                                    onChange={(e) => setGoalForm(prev => ({ ...prev, actionType: e.target.value }))}
+                                >
+                                    <option value="custom">Manual completion only</option>
+                                    <option value="fund_account">Account gets funded</option>
+                                    <option value="buy_eval">Buy an eval</option>
+                                </select>
+                            </div>
+                            <div className="form-field">
+                                <label>Specific Firm (optional)</label>
+                                <select
+                                    value={goalForm.firmId}
+                                    onChange={(e) => setGoalForm(prev => ({ ...prev, firmId: e.target.value }))}
+                                >
+                                    <option value="">Any firm</option>
+                                    {Object.values(firms).map(firm => (
+                                        <option key={firm.id} value={firm.id}>{firm.name}</option>
+                                    ))}
+                                </select>
+                            </div>
+                        </div>
+                        <div className="goal-form-row">
+                            <div className="form-field">
+                                <label>End Date (optional)</label>
+                                <input
+                                    type="date"
+                                    value={goalForm.endDate}
+                                    onChange={(e) => setGoalForm(prev => ({ ...prev, endDate: e.target.value }))}
+                                />
+                            </div>
+                            <div className="form-field">
+                                <label>Description (optional)</label>
+                                <input
+                                    type="text"
+                                    value={goalForm.description}
+                                    onChange={(e) => setGoalForm(prev => ({ ...prev, description: e.target.value }))}
+                                    placeholder="Additional details..."
+                                />
+                            </div>
+                        </div>
+                        <div className="goal-form-actions">
+                            <button className="cancel-btn" onClick={() => setShowGoalForm(false)}>Cancel</button>
+                            <button className="save-goal-btn" onClick={handleAddGoal}>Create Goal</button>
+                        </div>
+                    </div>
+                )}
+
                 <div className="task-list">
-                    {Object.values(firms).map(firm => (
-                        <TaskItem
-                            key={firm.id}
-                            icon={firm.color === 'orange' ? 'money' : 'diamond'}
-                            title={`Buy 1 ${firm.name} Eval (~$${firm.evalCost || 0})`}
-                            subtitle={firm.activationCost > 0 ? 'Has activation cost' : 'No activation needed'}
-                            priority={firm.color === 'orange' ? 'high' : 'medium'}
-                        />
-                    ))}
-                    <TaskItem
-                        icon="chart"
-                        title="Trade at Market Open"
-                        subtitle="Execute your edge with full position"
-                        priority="high"
-                    />
-                    <TaskItem
-                        icon="target"
-                        title="Pass at least 1 account"
-                        subtitle="Daily minimum goal"
-                        priority="high"
-                    />
+                    {todaysGoals.length === 0 ? (
+                        <div className="no-goals">
+                            <p>No goals for today. Create your first goal above!</p>
+                        </div>
+                    ) : (
+                        todaysGoals.map(goal => (
+                            <GoalItem
+                                key={goal.id}
+                                goal={goal}
+                                firms={firms}
+                                onToggle={(completed) => toggleGoalCompletion(goal.id, completed)}
+                                onDelete={() => deleteGoal(goal.id)}
+                            />
+                        ))
+                    )}
                 </div>
             </section>
 
@@ -49,7 +175,7 @@ export default function Dashboard() {
                                 limit={getFirmLimit(firm.id)}
                                 defaultEvalCost={firm.evalCost || 0}
                                 defaultActivationCost={firm.activationCost || 0}
-                                onAdd={(evalCost, profitTarget) => addAccountWithCost(firm.id, evalCost, profitTarget)}
+                                onAdd={(evalCost, profitTarget, createdDate) => addAccountWithCost(firm.id, evalCost, profitTarget, createdDate)}
                                 onStatusChange={(id, status, cost) => updateAccountStatus(firm.id, id, status, cost)}
                                 onBalanceChange={(id, balance) => updateAccountBalance(firm.id, id, balance)}
                                 onProfitTargetChange={(id, target) => updateAccountProfitTarget(firm.id, id, target)}
@@ -60,49 +186,54 @@ export default function Dashboard() {
                 </div>
             </section>
 
-            <section className="daily-strategy">
-                <h2>Daily Strategy</h2>
-                <div className="strategy-card">
-                    {Object.values(firms).map(firm => (
-                        <StrategyItem
-                            key={firm.id}
-                            icon={firm.color === 'orange' ? 'money' : 'diamond'}
-                            title={`Buy ${firm.name} Eval`}
-                            description={`Cost: ~$${firm.evalCost || 0}${firm.activationCost > 0 ? ` | Activation: $${firm.activationCost}` : ''}`}
-                        />
-                    ))}
-                    <StrategyItem
-                        icon="chart"
-                        title="Full Part at Open"
-                        description="Execute your edge with full position"
-                    />
-                    <StrategyItem
-                        icon="target"
-                        title="Pass At Least 1 Account"
-                        description="Daily minimum goal"
-                    />
-                </div>
-            </section>
         </div>
     );
 }
 
-function TaskItem({ icon, title, subtitle, priority }) {
-    const icons = {
-        money: '💰',
-        diamond: '💎',
-        chart: '📈',
-        target: '🎯'
+function GoalItem({ goal, firms, onToggle, onDelete }) {
+    const getIcon = () => {
+        switch (goal.actionType) {
+            case 'fund_account': return '🎯';
+            case 'buy_eval': return '💰';
+            default: return '✓';
+        }
+    };
+
+    const getSubtitle = () => {
+        const parts = [];
+        if (goal.goalType !== 'daily') parts.push(goal.goalType);
+        if (goal.actionType !== 'custom') {
+            const actionLabels = {
+                'fund_account': 'Auto: when funded',
+                'buy_eval': 'Auto: when eval bought'
+            };
+            parts.push(actionLabels[goal.actionType]);
+        }
+        if (goal.firmId && firms[goal.firmId]) {
+            parts.push(firms[goal.firmId].name);
+        }
+        if (goal.endDate) {
+            parts.push(`until ${goal.endDate}`);
+        }
+        return parts.length > 0 ? parts.join(' • ') : goal.description || 'Daily goal';
     };
 
     return (
-        <div className={`task-item ${priority}`}>
-            <span className="task-icon">{icons[icon]}</span>
+        <div className={`task-item ${goal.isCompleted ? 'completed' : ''} ${goal.autoCompleted ? 'auto-completed' : ''}`}>
+            <span className="task-icon">{getIcon()}</span>
             <div className="task-content">
-                <h4>{title}</h4>
-                <p>{subtitle}</p>
+                <h4>{goal.title}</h4>
+                <p>{getSubtitle()}</p>
+                {goal.autoCompleted && <span className="auto-badge">Auto-completed</span>}
             </div>
-            <input type="checkbox" />
+            <div className="goal-actions">
+                <input
+                    type="checkbox"
+                    checked={goal.isCompleted}
+                    onChange={(e) => onToggle(e.target.checked)}
+                />
+                <button className="delete-goal-btn" onClick={onDelete} title="Delete goal">×</button>
+            </div>
         </div>
     );
 }
@@ -111,6 +242,7 @@ function AccountCard({ firm, accounts, passed, limit, defaultEvalCost, defaultAc
     const [showAddForm, setShowAddForm] = useState(false);
     const [evalCost, setEvalCost] = useState(defaultEvalCost);
     const [profitTarget, setProfitTarget] = useState(firm.defaultProfitTarget);
+    const [createdDate, setCreatedDate] = useState(new Date().toISOString().split('T')[0]);
     const [statusChange, setStatusChange] = useState(null); // { id, newStatus }
     const [passCost, setPassCost] = useState(defaultActivationCost);
     const [editingBalance, setEditingBalance] = useState(null); // account id being edited
@@ -122,10 +254,11 @@ function AccountCard({ firm, accounts, passed, limit, defaultEvalCost, defaultAc
     const funded = accounts.filter(a => a.status === 'funded').length;
 
     const handleAdd = () => {
-        onAdd(evalCost || 0, profitTarget || firm.defaultProfitTarget);
+        onAdd(evalCost || 0, profitTarget || firm.defaultProfitTarget, createdDate);
         setShowAddForm(false);
         setEvalCost(defaultEvalCost);
         setProfitTarget(firm.defaultProfitTarget);
+        setCreatedDate(new Date().toISOString().split('T')[0]);
     };
 
     const startEditTarget = (acc) => {
@@ -312,6 +445,14 @@ function AccountCard({ firm, accounts, passed, limit, defaultEvalCost, defaultAc
                                 step="100"
                             />
                         </div>
+                        <div className="form-field" style={{ gridColumn: '1 / -1' }}>
+                            <label>Date (backdate if needed)</label>
+                            <input
+                                type="date"
+                                value={createdDate}
+                                onChange={(e) => setCreatedDate(e.target.value)}
+                            />
+                        </div>
                     </div>
                     <div className="cost-input-row" style={{ marginTop: '12px' }}>
                         <button onClick={handleAdd}>Add Account</button>
@@ -325,21 +466,3 @@ function AccountCard({ firm, accounts, passed, limit, defaultEvalCost, defaultAc
     );
 }
 
-function StrategyItem({ icon, title, description }) {
-    const icons = {
-        money: '💰',
-        diamond: '💎',
-        chart: '📈',
-        target: '🎯'
-    };
-
-    return (
-        <div className="strategy-item">
-            <span className="icon">{icons[icon]}</span>
-            <div className="strategy-content">
-                <h4>{title}</h4>
-                <p>{description}</p>
-            </div>
-        </div>
-    );
-}

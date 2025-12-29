@@ -6,32 +6,6 @@ const DashboardContext = createContext({});
 
 export const useDashboard = () => useContext(DashboardContext);
 
-// Default firm/account type configurations - used as fallback
-const DEFAULT_FIRMS = {
-    apex: {
-        id: 'apex',
-        name: 'Apex 50K',
-        accountName: 'Apex 50K',
-        maxFunded: 20,
-        evalCost: 25,
-        activationCost: 65,
-        color: 'orange',
-        hasConsistencyRule: false,
-        defaultProfitTarget: 3000
-    },
-    lucid50k: {
-        id: 'lucid50k',
-        name: 'Lucid 50K',
-        accountName: 'Lucid Flex 50K',
-        maxFunded: 5,
-        evalCost: 80,
-        activationCost: 0,
-        color: 'purple',
-        hasConsistencyRule: true,
-        defaultProfitTarget: 3000
-    }
-};
-
 const defaultSettings = {
     payoutEstimate: 2000,
     payoutStartDate: '2026-01'
@@ -40,11 +14,13 @@ const defaultSettings = {
 export function DashboardProvider({ children }) {
     const { user } = useAuth();
     const [loading, setLoading] = useState(true);
-    const [firms, setFirms] = useState(DEFAULT_FIRMS);
+    const [firms, setFirms] = useState({});
     const [settings, setSettings] = useState(defaultSettings);
     const [accounts, setAccounts] = useState({});
     const [expenses, setExpenses] = useState([]);
     const [dailyLog, setDailyLog] = useState([]);
+    const [goals, setGoals] = useState([]);
+    const [goalCompletions, setGoalCompletions] = useState([]);
 
     // Load all data on mount
     useEffect(() => {
@@ -64,7 +40,8 @@ export function DashboardProvider({ children }) {
                 loadSettings(),
                 loadAccounts(loadedFirms),
                 loadExpenses(),
-                loadDailyLogs()
+                loadDailyLogs(),
+                loadGoals()
             ]);
         } catch (err) {
             console.error('Load error:', err);
@@ -97,9 +74,9 @@ export function DashboardProvider({ children }) {
             setFirms(firmsMap);
             return firmsMap;
         }
-        // Use defaults if no firms configured
-        setFirms(DEFAULT_FIRMS);
-        return DEFAULT_FIRMS;
+        // Return empty if no firms configured - user must create their own
+        setFirms({});
+        return {};
     };
 
     const loadSettings = async () => {
@@ -192,6 +169,49 @@ export function DashboardProvider({ children }) {
         }
     };
 
+    const loadGoals = async () => {
+        // Load goals
+        const { data: goalsData } = await supabase
+            .from('goals')
+            .select('*')
+            .eq('user_id', user.id)
+            .eq('is_active', true)
+            .order('created_at', { ascending: true });
+
+        if (goalsData) {
+            setGoals(goalsData.map(g => ({
+                id: g.id,
+                title: g.title,
+                description: g.description,
+                goalType: g.goal_type,
+                targetCount: g.target_count,
+                actionType: g.action_type,
+                firmId: g.firm_id,
+                startDate: g.start_date,
+                endDate: g.end_date,
+                isActive: g.is_active
+            })));
+        }
+
+        // Load today's completions
+        const today = new Date().toISOString().split('T')[0];
+        const { data: completionsData } = await supabase
+            .from('goal_completions')
+            .select('*')
+            .eq('user_id', user.id)
+            .eq('completion_date', today);
+
+        if (completionsData) {
+            setGoalCompletions(completionsData.map(c => ({
+                id: c.id,
+                goalId: c.goal_id,
+                completionDate: c.completion_date,
+                completedCount: c.completed_count,
+                autoCompleted: c.auto_completed
+            })));
+        }
+    };
+
     // Settings functions
     const updateSetting = async (key, value) => {
         const newSettings = { ...settings, [key]: value };
@@ -278,14 +298,17 @@ export function DashboardProvider({ children }) {
         }));
     };
 
-    const deleteFirm = async (firmId) => {
+    const deleteFirm = async (firmId, confirmed = false) => {
         // Check if there are accounts under this firm
         const firmAccounts = accounts[firmId] || [];
+
+        if (firmAccounts.length > 0 && !confirmed) {
+            // Return the accounts so the UI can show a detailed warning
+            return { needsConfirmation: true, accounts: firmAccounts };
+        }
+
+        // Delete accounts first if any
         if (firmAccounts.length > 0) {
-            if (!confirm(`This will also delete ${firmAccounts.length} account(s). Continue?`)) {
-                return;
-            }
-            // Delete accounts first
             await supabase.from('accounts').delete().eq('firm_id', firmId).eq('user_id', user.id);
         }
 
@@ -297,7 +320,7 @@ export function DashboardProvider({ children }) {
 
         if (error) {
             console.error('Delete firm error:', error);
-            return;
+            return { error };
         }
 
         setFirms(prev => {
@@ -310,10 +333,12 @@ export function DashboardProvider({ children }) {
             delete newAccounts[firmId];
             return newAccounts;
         });
+
+        return { success: true };
     };
 
     // Account functions
-    const addAccountWithCost = async (firmId, evalCost = 0, profitTarget = null) => {
+    const addAccountWithCost = async (firmId, evalCost = 0, profitTarget = null, createdDate = null) => {
         const firm = firms[firmId];
         if (!firm) return;
 
@@ -327,6 +352,7 @@ export function DashboardProvider({ children }) {
 
         const accountNum = firmAccounts.length + 1;
         const accountName = `${firm.accountName} #${accountNum}`;
+        const dateToUse = createdDate || new Date().toISOString().split('T')[0];
 
         // Insert account
         const { data: newAccount, error } = await supabase
@@ -338,7 +364,8 @@ export function DashboardProvider({ children }) {
                 status: 'in-progress',
                 eval_cost: evalCost,
                 profit_target: profitTarget || firm.defaultProfitTarget,
-                balance: 0
+                balance: 0,
+                created_at: dateToUse
             })
             .select()
             .single();
@@ -348,9 +375,14 @@ export function DashboardProvider({ children }) {
             return;
         }
 
-        // Add expense if eval cost provided
+        // Add expense if eval cost provided (use same date)
         if (evalCost > 0) {
-            await addExpense(firmId, evalCost, accountName);
+            await addExpense(firmId, evalCost, accountName, dateToUse);
+        }
+
+        // Auto-complete goals for buying eval (only for today)
+        if (!createdDate || createdDate === new Date().toISOString().split('T')[0]) {
+            await autoCompleteGoals('buy_eval', firmId);
         }
 
         // Update local state
@@ -365,7 +397,7 @@ export function DashboardProvider({ children }) {
                 balance: 0,
                 passedDate: null,
                 fundedDate: null,
-                createdDate: new Date().toISOString().split('T')[0]
+                createdDate: dateToUse
             }]
         }));
     };
@@ -412,6 +444,11 @@ export function DashboardProvider({ children }) {
                     : acc
             )
         }));
+
+        // Auto-complete goals when account is funded
+        if (status === 'funded') {
+            await autoCompleteGoals('fund_account', firmId);
+        }
     };
 
     const updateAccountBalance = async (firmId, accountId, balance) => {
@@ -474,7 +511,9 @@ export function DashboardProvider({ children }) {
     };
 
     // Expense functions
-    const addExpense = async (type, amount, note = '') => {
+    const addExpense = async (type, amount, note = '', date = null) => {
+        const dateToUse = date || new Date().toISOString().split('T')[0];
+
         const { data: newExpense, error } = await supabase
             .from('expenses')
             .insert({
@@ -482,7 +521,7 @@ export function DashboardProvider({ children }) {
                 type,
                 amount: parseFloat(amount),
                 note,
-                date: new Date().toISOString().split('T')[0]
+                date: dateToUse
             })
             .select()
             .single();
@@ -492,13 +531,19 @@ export function DashboardProvider({ children }) {
             return;
         }
 
-        setExpenses(prev => [{
-            id: newExpense.id,
-            type,
-            amount: parseFloat(amount),
-            note,
-            date: newExpense.date
-        }, ...prev]);
+        // Insert in correct position based on date
+        setExpenses(prev => {
+            const newExp = {
+                id: newExpense.id,
+                type,
+                amount: parseFloat(amount),
+                note,
+                date: dateToUse
+            };
+            // Insert sorted by date (newest first)
+            const newList = [...prev, newExp].sort((a, b) => b.date.localeCompare(a.date));
+            return newList;
+        });
     };
 
     const deleteExpense = async (expenseId) => {
@@ -513,6 +558,164 @@ export function DashboardProvider({ children }) {
         }
 
         setExpenses(prev => prev.filter(e => e.id !== expenseId));
+    };
+
+    // Goal functions
+    const addGoal = async (goalData) => {
+        const { data: newGoal, error } = await supabase
+            .from('goals')
+            .insert({
+                user_id: user.id,
+                title: goalData.title,
+                description: goalData.description || null,
+                goal_type: goalData.goalType || 'daily',
+                target_count: goalData.targetCount || 1,
+                action_type: goalData.actionType || 'custom',
+                firm_id: goalData.firmId || null,
+                start_date: goalData.startDate || new Date().toISOString().split('T')[0],
+                end_date: goalData.endDate || null,
+                is_active: true
+            })
+            .select()
+            .single();
+
+        if (error) {
+            console.error('Add goal error:', error);
+            return null;
+        }
+
+        const goal = {
+            id: newGoal.id,
+            title: newGoal.title,
+            description: newGoal.description,
+            goalType: newGoal.goal_type,
+            targetCount: newGoal.target_count,
+            actionType: newGoal.action_type,
+            firmId: newGoal.firm_id,
+            startDate: newGoal.start_date,
+            endDate: newGoal.end_date,
+            isActive: newGoal.is_active
+        };
+
+        setGoals(prev => [...prev, goal]);
+        return goal;
+    };
+
+    const deleteGoal = async (goalId) => {
+        const { error } = await supabase
+            .from('goals')
+            .delete()
+            .eq('id', goalId)
+            .eq('user_id', user.id);
+
+        if (error) {
+            console.error('Delete goal error:', error);
+            return;
+        }
+
+        setGoals(prev => prev.filter(g => g.id !== goalId));
+    };
+
+    const toggleGoalCompletion = async (goalId, completed) => {
+        const today = new Date().toISOString().split('T')[0];
+        const existing = goalCompletions.find(c => c.goalId === goalId);
+
+        if (completed && !existing) {
+            // Mark as complete
+            const { data, error } = await supabase
+                .from('goal_completions')
+                .insert({
+                    user_id: user.id,
+                    goal_id: goalId,
+                    completion_date: today,
+                    completed_count: 1,
+                    auto_completed: false
+                })
+                .select()
+                .single();
+
+            if (error) {
+                console.error('Complete goal error:', error);
+                return;
+            }
+
+            setGoalCompletions(prev => [...prev, {
+                id: data.id,
+                goalId: data.goal_id,
+                completionDate: data.completion_date,
+                completedCount: data.completed_count,
+                autoCompleted: data.auto_completed
+            }]);
+        } else if (!completed && existing) {
+            // Mark as incomplete
+            const { error } = await supabase
+                .from('goal_completions')
+                .delete()
+                .eq('id', existing.id);
+
+            if (error) {
+                console.error('Uncomplete goal error:', error);
+                return;
+            }
+
+            setGoalCompletions(prev => prev.filter(c => c.id !== existing.id));
+        }
+    };
+
+    // Auto-complete goals based on action type
+    const autoCompleteGoals = async (actionType, firmId = null) => {
+        const today = new Date().toISOString().split('T')[0];
+
+        // Find goals that match this action
+        const matchingGoals = goals.filter(g => {
+            if (g.actionType !== actionType) return false;
+            if (g.firmId && g.firmId !== firmId) return false;
+            if (g.startDate > today) return false;
+            if (g.endDate && g.endDate < today) return false;
+            // Check if already completed today
+            const alreadyCompleted = goalCompletions.find(c => c.goalId === g.id);
+            return !alreadyCompleted;
+        });
+
+        for (const goal of matchingGoals) {
+            const { data, error } = await supabase
+                .from('goal_completions')
+                .insert({
+                    user_id: user.id,
+                    goal_id: goal.id,
+                    completion_date: today,
+                    completed_count: 1,
+                    auto_completed: true
+                })
+                .select()
+                .single();
+
+            if (!error && data) {
+                setGoalCompletions(prev => [...prev, {
+                    id: data.id,
+                    goalId: data.goal_id,
+                    completionDate: data.completion_date,
+                    completedCount: data.completed_count,
+                    autoCompleted: data.auto_completed
+                }]);
+            }
+        }
+    };
+
+    const getTodaysGoals = () => {
+        const today = new Date().toISOString().split('T')[0];
+
+        return goals
+            .filter(g => {
+                if (g.startDate > today) return false;
+                if (g.endDate && g.endDate < today) return false;
+                return true;
+            })
+            .map(g => ({
+                ...g,
+                isCompleted: goalCompletions.some(c => c.goalId === g.id),
+                autoCompleted: goalCompletions.find(c => c.goalId === g.id)?.autoCompleted || false
+            }));
     };
 
     // Reset all data
@@ -587,6 +790,7 @@ export function DashboardProvider({ children }) {
             state,
             loading,
             firms,
+            goals,
             addFirm,
             updateFirm,
             deleteFirm,
@@ -598,6 +802,10 @@ export function DashboardProvider({ children }) {
             updateAccountBalance,
             updateAccountProfitTarget,
             deleteAccount,
+            addGoal,
+            deleteGoal,
+            toggleGoalCompletion,
+            getTodaysGoals,
             resetData,
             calculateMoneyStats,
             getTotalPassed,
