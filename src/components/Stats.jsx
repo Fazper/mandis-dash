@@ -50,24 +50,24 @@ export default function Stats() {
 
     // Prepare chart data
     const chartData = useMemo(() => {
-        // Monthly expenses data - include ALL expenses
-        const monthlyExpenses = {};
         const expensesList = expenses || [];
 
-        expensesList.forEach(exp => {
-            if (exp.date && exp.amount) {
-                const month = exp.date.substring(0, 7); // YYYY-MM
-                monthlyExpenses[month] = (monthlyExpenses[month] || 0) + exp.amount;
-            }
+        // Create FinancialTracker instance for all financial calculations
+        const tracker = new FinancialTracker({
+            expenses: expensesList,
+            payouts: payouts || [],
+            accountTypes,
+            firms
         });
 
-        const expensesByMonth = Object.entries(monthlyExpenses)
-            .map(([month, amount]) => ({
-                month: new Date(month + '-01').toLocaleDateString('en-US', { month: 'short', year: '2-digit' }),
-                rawMonth: month,
-                amount
-            }))
-            .sort((a, b) => a.rawMonth.localeCompare(b.rawMonth));
+        // Monthly expenses data - use FinancialTracker (fixes timezone bug)
+        const expensesByMonth = tracker.getExpensesByMonth();
+
+        // Expenses by firm - use FinancialTracker
+        const firmExpenseData = tracker.getExpensesByFirm();
+
+        // Actual financials (cumulative) - use FinancialTracker
+        const actualFinancials = tracker.getCumulativeMonthlyFinancials();
 
         // Account status distribution (all accounts)
         const allAccounts = Object.values(accounts).flat();
@@ -86,36 +86,6 @@ export default function Stats() {
                 color: STATUS_COLORS[status]
             }));
 
-        // Expenses by firm - group all expenses, unmatched go to "Other"
-        const expensesByFirm = {};
-        expensesList.forEach(exp => {
-            if (!exp.amount) return;
-
-            // Check if expense type directly matches an account type
-            let matchedType = accountTypes[exp.type];
-
-            // If not, check for activation expense pattern
-            if (!matchedType) {
-                const activationMatch = exp.type?.match(/^(.+)-activation$/);
-                if (activationMatch) {
-                    matchedType = accountTypes[activationMatch[1]];
-                }
-            }
-
-            let firmName = 'Other';
-            if (matchedType) {
-                const firm = firms[matchedType.firmId];
-                if (firm) {
-                    firmName = firm.name;
-                }
-            }
-
-            expensesByFirm[firmName] = (expensesByFirm[firmName] || 0) + exp.amount;
-        });
-        const firmExpenseData = Object.entries(expensesByFirm)
-            .map(([name, amount]) => ({ name, amount }))
-            .sort((a, b) => b.amount - a.amount);
-
         // Yearly projection using shared ProjectionEngine
         const engine = new ProjectionEngine({
             firms,
@@ -125,15 +95,6 @@ export default function Stats() {
             payoutStartDate: state.payoutStartDate
         });
         const yearlyProjection = engine.generateYearlyProjection();
-
-        // Actual financials using FinancialTracker
-        const tracker = new FinancialTracker({
-            expenses: expensesList,
-            payouts: payouts || [],
-            accountTypes,
-            firms
-        });
-        const actualFinancials = tracker.getCumulativeMonthlyFinancials();
 
         return { expensesByMonth, statusData, firmExpenseData, yearlyProjection, actualFinancials };
     }, [expenses, payouts, accounts, accountTypes, firms, state.payoutStartDate, passRateCalc]);
