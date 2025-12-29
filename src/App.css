@@ -309,6 +309,18 @@ body {
     }
 }
 
+/* Tab Content */
+.tab-content {
+    width: 100%;
+}
+
+.dashboard-tab,
+.money-tab,
+.projections-tab,
+.stats-tab {
+    width: 100%;
+}
+
 /* Section Styling */
 section {
     margin-bottom: 32px;
@@ -542,6 +554,37 @@ section h2 {
     color: var(--text-secondary);
 }
 
+.add-form-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+}
+
+.form-field {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.form-field label {
+    font-size: 0.8rem;
+    color: var(--text-secondary);
+}
+
+.form-field input {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    color: var(--text-primary);
+    padding: 10px 12px;
+    border-radius: 6px;
+    font-size: 0.9rem;
+}
+
+.form-field input:focus {
+    outline: none;
+    border-color: var(--accent-blue);
+}
+
 /* Account balance and progress */
 .account-info {
     flex: 1;
@@ -580,9 +623,28 @@ section h2 {
     transition: width 0.3s ease;
 }
 
-.progress-text {
+.progress-labels {
+    display: flex;
+    gap: 2px;
     font-size: 0.7rem;
+}
+
+.progress-text {
     color: var(--text-muted);
+    cursor: pointer;
+}
+
+.progress-text:hover {
+    color: var(--accent-blue);
+}
+
+.progress-target {
+    color: var(--text-muted);
+    cursor: pointer;
+}
+
+.progress-target:hover {
+    color: var(--accent-green);
 }
 
 .balance-edit {

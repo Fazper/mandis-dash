@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { useDashboard } from '../context/DashboardContext';
 
 export default function Dashboard() {
-    const { state, FIRMS, addAccountWithCost, updateAccountStatus, updateAccountBalance, deleteAccount, getFirmLimit } = useDashboard();
+    const { state, FIRMS, addAccountWithCost, updateAccountStatus, updateAccountBalance, updateAccountProfitTarget, deleteAccount, getFirmLimit } = useDashboard();
 
     return (
         <div className="dashboard-tab">
@@ -49,9 +49,10 @@ export default function Dashboard() {
                                 limit={getFirmLimit(firm.id)}
                                 defaultEvalCost={state.costs[firm.evalCostKey] || 0}
                                 defaultActivationCost={firm.activationCostKey ? state.costs[firm.activationCostKey] || 0 : 0}
-                                onAdd={(evalCost) => addAccountWithCost(firm.id, evalCost)}
+                                onAdd={(evalCost, profitTarget) => addAccountWithCost(firm.id, evalCost, profitTarget)}
                                 onStatusChange={(id, status, cost) => updateAccountStatus(firm.id, id, status, cost)}
                                 onBalanceChange={(id, balance) => updateAccountBalance(firm.id, id, balance)}
+                                onProfitTargetChange={(id, target) => updateAccountProfitTarget(firm.id, id, target)}
                                 onDelete={(id) => deleteAccount(firm.id, id)}
                             />
                         );
@@ -106,21 +107,36 @@ function TaskItem({ icon, title, subtitle, priority }) {
     );
 }
 
-function AccountCard({ firm, accounts, passed, limit, defaultEvalCost, defaultActivationCost, onAdd, onStatusChange, onBalanceChange, onDelete }) {
+function AccountCard({ firm, accounts, passed, limit, defaultEvalCost, defaultActivationCost, onAdd, onStatusChange, onBalanceChange, onProfitTargetChange, onDelete }) {
     const [showAddForm, setShowAddForm] = useState(false);
     const [evalCost, setEvalCost] = useState(defaultEvalCost);
+    const [profitTarget, setProfitTarget] = useState(firm.defaultProfitTarget);
     const [statusChange, setStatusChange] = useState(null); // { id, newStatus }
     const [passCost, setPassCost] = useState(defaultActivationCost);
     const [editingBalance, setEditingBalance] = useState(null); // account id being edited
     const [balanceInput, setBalanceInput] = useState('');
+    const [editingTarget, setEditingTarget] = useState(null);
+    const [targetInput, setTargetInput] = useState('');
 
     const halfway = accounts.filter(a => a.status === 'halfway').length;
     const funded = accounts.filter(a => a.status === 'funded').length;
 
     const handleAdd = () => {
-        onAdd(evalCost || 0);
+        onAdd(evalCost || 0, profitTarget || firm.defaultProfitTarget);
         setShowAddForm(false);
         setEvalCost(defaultEvalCost);
+        setProfitTarget(firm.defaultProfitTarget);
+    };
+
+    const startEditTarget = (acc) => {
+        setEditingTarget(acc.id);
+        setTargetInput(acc.profitTarget || firm.defaultProfitTarget);
+    };
+
+    const saveTarget = (id) => {
+        onProfitTargetChange(id, targetInput);
+        setEditingTarget(null);
+        setTargetInput('');
     };
 
     const handleStatusChange = (id, newStatus) => {
@@ -190,17 +206,36 @@ function AccountCard({ firm, accounts, passed, limit, defaultEvalCost, defaultAc
                                                     <button onClick={() => saveBalance(acc.id)}>Save</button>
                                                     <button className="cancel-btn" onClick={() => setEditingBalance(null)}>×</button>
                                                 </div>
+                                            ) : editingTarget === acc.id ? (
+                                                <div className="balance-edit">
+                                                    <span>Target: $</span>
+                                                    <input
+                                                        type="number"
+                                                        value={targetInput}
+                                                        onChange={(e) => setTargetInput(e.target.value)}
+                                                        placeholder="Target"
+                                                        step="100"
+                                                        autoFocus
+                                                    />
+                                                    <button onClick={() => saveTarget(acc.id)}>Save</button>
+                                                    <button className="cancel-btn" onClick={() => setEditingTarget(null)}>×</button>
+                                                </div>
                                             ) : (
-                                                <div className="progress-display" onClick={() => startEditBalance(acc)}>
-                                                    <div className="progress-bar">
+                                                <div className="progress-display">
+                                                    <div className="progress-bar" onClick={() => startEditBalance(acc)}>
                                                         <div
                                                             className="progress-fill"
                                                             style={{ width: `${progress}%` }}
                                                         />
                                                     </div>
-                                                    <span className="progress-text">
-                                                        ${acc.balance || 0} / ${acc.profitTarget || 0}
-                                                    </span>
+                                                    <div className="progress-labels">
+                                                        <span className="progress-text" onClick={() => startEditBalance(acc)}>
+                                                            ${acc.balance || 0}
+                                                        </span>
+                                                        <span className="progress-target" onClick={() => startEditTarget(acc)}>
+                                                            / ${acc.profitTarget || 0}
+                                                        </span>
+                                                    </div>
                                                 </div>
                                             )}
                                         </div>
@@ -256,16 +291,30 @@ function AccountCard({ firm, accounts, passed, limit, defaultEvalCost, defaultAc
             {/* Add account form */}
             {showAddForm ? (
                 <div className="cost-input-form">
-                    <label>Eval Cost ($)</label>
-                    <div className="cost-input-row">
-                        <input
-                            type="number"
-                            value={evalCost}
-                            onChange={(e) => setEvalCost(parseFloat(e.target.value) || 0)}
-                            placeholder={defaultEvalCost.toString()}
-                            step="0.01"
-                        />
-                        <button onClick={handleAdd}>Add</button>
+                    <div className="add-form-grid">
+                        <div className="form-field">
+                            <label>Eval Cost ($)</label>
+                            <input
+                                type="number"
+                                value={evalCost}
+                                onChange={(e) => setEvalCost(parseFloat(e.target.value) || 0)}
+                                placeholder={defaultEvalCost.toString()}
+                                step="0.01"
+                            />
+                        </div>
+                        <div className="form-field">
+                            <label>Profit Target ($)</label>
+                            <input
+                                type="number"
+                                value={profitTarget}
+                                onChange={(e) => setProfitTarget(parseFloat(e.target.value) || 0)}
+                                placeholder={firm.defaultProfitTarget.toString()}
+                                step="100"
+                            />
+                        </div>
+                    </div>
+                    <div className="cost-input-row" style={{ marginTop: '12px' }}>
+                        <button onClick={handleAdd}>Add Account</button>
                         <button className="cancel-btn" onClick={() => setShowAddForm(false)}>Cancel</button>
                     </div>
                 </div>
