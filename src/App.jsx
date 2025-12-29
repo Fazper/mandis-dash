@@ -1,10 +1,11 @@
-import { BrowserRouter, Routes, Route, NavLink, Navigate } from 'react-router-dom';
+import { useState, useCallback } from 'react';
+import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { DashboardProvider } from './context/DashboardContext';
 import { ToastProvider } from './context/ToastContext';
 import ErrorBoundary from './components/ErrorBoundary';
 import Login from './components/Login';
-import Header from './components/Header';
+import Sidebar from './components/Sidebar';
 import Dashboard from './components/Dashboard';
 import MoneyTracker from './components/MoneyTracker';
 import Projections from './components/Projections';
@@ -13,6 +14,14 @@ import './App.css';
 
 function AppContent() {
     const { user, loading } = useAuth();
+    const [sidebarExpanded, setSidebarExpanded] = useState(() => {
+        const saved = localStorage.getItem('sidebarExpanded');
+        return saved !== null ? JSON.parse(saved) : true;
+    });
+
+    const handleSidebarChange = useCallback((expanded) => {
+        setSidebarExpanded(expanded);
+    }, []);
 
     if (loading) {
         return (
@@ -29,23 +38,9 @@ function AppContent() {
 
     return (
         <DashboardProvider>
-            <div className="container">
-                <Header />
-                <nav className="tab-nav">
-                    <NavLink to="/dashboard" className={({ isActive }) => `tab-btn ${isActive ? 'active' : ''}`}>
-                        Dashboard
-                    </NavLink>
-                    <NavLink to="/money" className={({ isActive }) => `tab-btn ${isActive ? 'active' : ''}`}>
-                        Money
-                    </NavLink>
-                    <NavLink to="/projections" className={({ isActive }) => `tab-btn ${isActive ? 'active' : ''}`}>
-                        Projections
-                    </NavLink>
-                    <NavLink to="/stats" className={({ isActive }) => `tab-btn ${isActive ? 'active' : ''}`}>
-                        Stats & Log
-                    </NavLink>
-                </nav>
-                <main className="tab-content">
+            <div className={`app-layout ${sidebarExpanded ? '' : 'sidebar-collapsed'}`}>
+                <Sidebar onExpandChange={handleSidebarChange} />
+                <main className="main-content">
                     <ErrorBoundary>
                         <Routes>
                             <Route path="/dashboard" element={<Dashboard />} />

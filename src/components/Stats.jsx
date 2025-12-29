@@ -172,7 +172,15 @@ export default function Stats() {
                                         contentStyle={{ background: '#1f2937', border: '1px solid #374151', borderRadius: 8 }}
                                         formatter={(value) => [`$${value.toLocaleString()}`, 'Spent']}
                                     />
-                                    <Area type="monotone" dataKey="amount" stroke={COLORS.purple} fillOpacity={1} fill="url(#colorExpense)" />
+                                    <Area
+                                        type="monotone"
+                                        dataKey="amount"
+                                        stroke={COLORS.purple}
+                                        strokeWidth={2}
+                                        fillOpacity={1}
+                                        fill="url(#colorExpense)"
+                                        activeDot={{ r: 6, strokeWidth: 2, stroke: '#fff' }}
+                                    />
                                 </AreaChart>
                             </ResponsiveContainer>
                         ) : (
@@ -196,6 +204,8 @@ export default function Stats() {
                                         outerRadius={80}
                                         paddingAngle={2}
                                         dataKey="value"
+                                        animationBegin={0}
+                                        animationDuration={800}
                                     >
                                         {chartData.statusData.map((entry, index) => (
                                             <Cell key={`cell-${index}`} fill={entry.color} />

@@ -21,4 +21,12 @@
     --accent-blue-dim: rgba(0, 136, 255, 0.15);
     --accent-purple: #a855f7;
     --accent-purple-dim: rgba(168, 85, 247, 0.15);
+
+    /* Animation timings */
+    --transition-fast: 0.15s ease;
+    --transition-normal: 0.2s ease;
+    --transition-slow: 0.3s ease;
+
+    /* Focus ring */
+    --focus-ring: 0 0 0 2px var(--bg-primary), 0 0 0 4px var(--accent-blue);
 }

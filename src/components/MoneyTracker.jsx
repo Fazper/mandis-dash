@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { useDashboard } from '../context/DashboardContext';
+import Modal from './Modal';
 
 export default function MoneyTracker() {
     const {
@@ -352,7 +353,7 @@ function FirmForm({ firm, onSave, onCancel }) {
     };
 
     return (
-        <div className="firm-form-overlay">
+        <Modal onClose={onCancel}>
             <form className="firm-form" onSubmit={handleSubmit}>
                 <h3>{firm ? 'Edit Firm' : 'Add Prop Firm'}</h3>
 
@@ -420,7 +421,7 @@ function FirmForm({ firm, onSave, onCancel }) {
                     <button type="submit" className="save-btn">{firm ? 'Save Changes' : 'Add Firm'}</button>
                 </div>
             </form>
-        </div>
+        </Modal>
     );
 }
 
@@ -493,7 +494,7 @@ function AccountTypeForm({ type, firmId, firmColor, firms, onSave, onCancel }) {
     };
 
     return (
-        <div className="firm-form-overlay">
+        <Modal onClose={onCancel}>
             <form className="firm-form" onSubmit={handleSubmit}>
                 <h3>{type ? 'Edit Account Type' : 'Add Account Type'}</h3>
 
@@ -636,7 +637,7 @@ function AccountTypeForm({ type, firmId, firmColor, firms, onSave, onCancel }) {
                     <button type="submit" className="save-btn">{type ? 'Save Changes' : 'Add Account Type'}</button>
                 </div>
             </form>
-        </div>
+        </Modal>
     );
 }
 
@@ -652,7 +653,7 @@ function MoneyCard({ title, value, subtitle, type }) {
 
 function DeleteFirmModal({ firmName, accountTypes, accounts, onConfirm, onCancel }) {
     return (
-        <div className="firm-form-overlay">
+        <Modal onClose={onCancel}>
             <div className="delete-confirm-modal">
                 <h3>Delete {firmName}?</h3>
                 <p className="warning-text">
@@ -681,13 +682,13 @@ function DeleteFirmModal({ firmName, accountTypes, accounts, onConfirm, onCancel
                     </button>
                 </div>
             </div>
-        </div>
+        </Modal>
     );
 }
 
 function DeleteTypeModal({ typeName, accounts, onConfirm, onCancel }) {
     return (
-        <div className="firm-form-overlay">
+        <Modal onClose={onCancel}>
             <div className="delete-confirm-modal">
                 <h3>Delete {typeName}?</h3>
                 <p className="warning-text">
@@ -710,7 +711,7 @@ function DeleteTypeModal({ typeName, accounts, onConfirm, onCancel }) {
                     </button>
                 </div>
             </div>
-        </div>
+        </Modal>
     );
 }
 

@@ -181,6 +181,12 @@
     border: 1px solid var(--border);
     border-radius: 12px;
     padding: 20px;
+    transition: all var(--transition-normal);
+}
+
+.chart-section:hover {
+    border-color: var(--border-light);
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2);
 }
 
 .chart-section h2 {
@@ -214,6 +220,7 @@
 
 .recharts-tooltip-wrapper {
     outline: none;
+    filter: drop-shadow(0 4px 12px rgba(0, 0, 0, 0.4));
 }
 
 .recharts-default-tooltip {
@@ -224,4 +231,73 @@
 
 .recharts-legend-item-text {
     color: var(--text-secondary) !important;
+}
+
+/* Bar hover effects */
+.recharts-bar-rectangle {
+    transition: filter 0.15s ease, opacity 0.15s ease;
+}
+
+.recharts-bar-rectangle:hover {
+    filter: brightness(1.2);
+}
+
+/* Pie hover effects */
+.recharts-pie-sector {
+    transition: transform 0.2s ease, filter 0.2s ease;
+    transform-origin: center;
+}
+
+.recharts-pie-sector:hover {
+    filter: brightness(1.15) drop-shadow(0 0 8px currentColor);
+}
+
+/* Area/Line hover effects */
+.recharts-area-area {
+    transition: opacity 0.2s ease;
+}
+
+.recharts-area-curve {
+    transition: stroke-width 0.2s ease;
+}
+
+.chart-container:hover .recharts-area-curve {
+    stroke-width: 3;
+}
+
+/* Active dot on hover */
+.recharts-active-dot circle {
+    filter: drop-shadow(0 0 6px currentColor);
+}
+
+/* Legend item hover */
+.recharts-legend-item {
+    cursor: pointer;
+    transition: opacity 0.2s ease;
+}
+
+.recharts-legend-item:hover {
+    opacity: 0.7;
+}
+
+/* Stat card hover */
+.stat-card {
+    transition: all var(--transition-normal);
+}
+
+.stat-card:hover {
+    transform: translateY(-2px);
+    border-color: var(--border-light);
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.2);
+}
+
+/* Breakdown card hover */
+.breakdown-card {
+    transition: all var(--transition-normal);
+}
+
+.breakdown-card:hover {
+    transform: translateY(-2px);
+    border-color: var(--border-light);
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.2);
 }
