@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { BrowserRouter, Routes, Route, NavLink, Navigate } from 'react-router-dom';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { DashboardProvider } from './context/DashboardContext';
 import Login from './components/Login';
@@ -11,7 +11,6 @@ import './App.css';
 
 function AppContent() {
     const { user, loading } = useAuth();
-    const [activeTab, setActiveTab] = useState('dashboard');
 
     if (loading) {
         return (
@@ -31,24 +30,27 @@ function AppContent() {
             <div className="container">
                 <Header />
                 <nav className="tab-nav">
-                    {['dashboard', 'money', 'projections', 'stats'].map(tab => (
-                        <button
-                            key={tab}
-                            className={`tab-btn ${activeTab === tab ? 'active' : ''}`}
-                            onClick={() => setActiveTab(tab)}
-                        >
-                            {tab === 'dashboard' && 'Dashboard'}
-                            {tab === 'money' && 'Money'}
-                            {tab === 'projections' && 'Projections'}
-                            {tab === 'stats' && 'Stats & Log'}
-                        </button>
-                    ))}
+                    <NavLink to="/dashboard" className={({ isActive }) => `tab-btn ${isActive ? 'active' : ''}`}>
+                        Dashboard
+                    </NavLink>
+                    <NavLink to="/money" className={({ isActive }) => `tab-btn ${isActive ? 'active' : ''}`}>
+                        Money
+                    </NavLink>
+                    <NavLink to="/projections" className={({ isActive }) => `tab-btn ${isActive ? 'active' : ''}`}>
+                        Projections
+                    </NavLink>
+                    <NavLink to="/stats" className={({ isActive }) => `tab-btn ${isActive ? 'active' : ''}`}>
+                        Stats & Log
+                    </NavLink>
                 </nav>
                 <main className="tab-content">
-                    {activeTab === 'dashboard' && <Dashboard />}
-                    {activeTab === 'money' && <MoneyTracker />}
-                    {activeTab === 'projections' && <Projections />}
-                    {activeTab === 'stats' && <Stats />}
+                    <Routes>
+                        <Route path="/dashboard" element={<Dashboard />} />
+                        <Route path="/money" element={<MoneyTracker />} />
+                        <Route path="/projections" element={<Projections />} />
+                        <Route path="/stats" element={<Stats />} />
+                        <Route path="*" element={<Navigate to="/dashboard" replace />} />
+                    </Routes>
                 </main>
             </div>
         </DashboardProvider>
@@ -58,7 +60,9 @@ function AppContent() {
 function App() {
     return (
         <AuthProvider>
-            <AppContent />
+            <BrowserRouter basename="/PropDashboard-React">
+                <AppContent />
+            </BrowserRouter>
         </AuthProvider>
     );
 }

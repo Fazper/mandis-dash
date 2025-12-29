@@ -29,7 +29,7 @@ const FIRMS = {
         activationCostKey: null,
         color: 'purple',
         hasConsistencyRule: true,
-        defaultProfitTarget: 2500,
+        defaultProfitTarget: 3000,
         defaultBalance: 0
     }
 };
