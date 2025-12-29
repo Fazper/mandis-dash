@@ -5,9 +5,14 @@ export default function MoneyTracker() {
     const {
         state,
         firms,
+        accountTypes,
         addFirm,
         updateFirm,
         deleteFirm,
+        addAccountType,
+        updateAccountType,
+        deleteAccountType,
+        getAccountTypesForFirm,
         updateSetting,
         addExpense,
         deleteExpense,
@@ -16,13 +21,18 @@ export default function MoneyTracker() {
         getTotalPassed
     } = useDashboard();
 
-    const [expenseType, setExpenseType] = useState(Object.keys(firms)[0] || 'other');
+    const [expenseType, setExpenseType] = useState(Object.keys(accountTypes)[0] || 'other');
     const [expenseAmount, setExpenseAmount] = useState('');
     const [expenseNote, setExpenseNote] = useState('');
     const [expenseDate, setExpenseDate] = useState(new Date().toISOString().split('T')[0]);
+
     const [showAddFirm, setShowAddFirm] = useState(false);
     const [editingFirm, setEditingFirm] = useState(null);
-    const [deleteConfirm, setDeleteConfirm] = useState(null); // { firmId, accounts }
+    const [deleteFirmConfirm, setDeleteFirmConfirm] = useState(null);
+
+    const [showAddAccountType, setShowAddAccountType] = useState(null); // firmId to add type to
+    const [editingAccountType, setEditingAccountType] = useState(null);
+    const [deleteTypeConfirm, setDeleteTypeConfirm] = useState(null);
 
     const stats = calculateMoneyStats();
     const totalPassed = getTotalPassed();
@@ -40,26 +50,44 @@ export default function MoneyTracker() {
     const handleDeleteFirm = async (firmId) => {
         const result = await deleteFirm(firmId);
         if (result?.needsConfirmation) {
-            setDeleteConfirm({ firmId, accounts: result.accounts });
+            setDeleteFirmConfirm({ firmId, accountTypes: result.accountTypes, accounts: result.accounts });
         }
     };
 
     const confirmDeleteFirm = async () => {
-        if (deleteConfirm) {
-            await deleteFirm(deleteConfirm.firmId, true);
-            setDeleteConfirm(null);
+        if (deleteFirmConfirm) {
+            await deleteFirm(deleteFirmConfirm.firmId, true);
+            setDeleteFirmConfirm(null);
         }
     };
 
-    // Build expense type options dynamically
+    const handleDeleteAccountType = async (typeId) => {
+        const result = await deleteAccountType(typeId);
+        if (result?.needsConfirmation) {
+            setDeleteTypeConfirm({ typeId, accounts: result.accounts });
+        }
+    };
+
+    const confirmDeleteAccountType = async () => {
+        if (deleteTypeConfirm) {
+            await deleteAccountType(deleteTypeConfirm.typeId, true);
+            setDeleteTypeConfirm(null);
+        }
+    };
+
+    // Build expense type options dynamically from account types
     const expenseOptions = [];
-    Object.values(firms).forEach(firm => {
-        expenseOptions.push({ value: firm.id, label: `${firm.name} Eval` });
-        if (firm.activationCost > 0) {
-            expenseOptions.push({ value: `${firm.id}-activation`, label: `${firm.name} Activation` });
+    Object.values(accountTypes).forEach(type => {
+        const firm = firms[type.firmId];
+        const firmName = firm ? `${firm.name} - ` : '';
+        expenseOptions.push({ value: type.id, label: `${firmName}${type.name} Eval` });
+        if (type.activationCost > 0) {
+            expenseOptions.push({ value: `${type.id}-activation`, label: `${firmName}${type.name} Activation` });
         }
     });
     expenseOptions.push({ value: 'other', label: 'Other' });
+
+    const hasFirms = Object.keys(firms).length > 0;
 
     return (
         <div className="money-tab">
@@ -92,30 +120,54 @@ export default function MoneyTracker() {
             </section>
 
             <section className="firms-config">
-                <h2>Account Types</h2>
-                <div className="firms-grid">
-                    {Object.values(firms).map(firm => (
-                        <FirmCard
-                            key={firm.id}
-                            firm={firm}
-                            onEdit={() => setEditingFirm(firm)}
-                            onDelete={() => handleDeleteFirm(firm.id)}
-                        />
-                    ))}
-
-                {deleteConfirm && (
-                    <DeleteConfirmModal
-                        firmName={firms[deleteConfirm.firmId]?.name}
-                        accounts={deleteConfirm.accounts}
-                        onConfirm={confirmDeleteFirm}
-                        onCancel={() => setDeleteConfirm(null)}
-                    />
-                )}
-                    <button className="add-firm-btn" onClick={() => setShowAddFirm(true)}>
-                        + Add Account Type
+                <div className="section-header">
+                    <h2>Prop Firms & Account Types</h2>
+                    <button className="add-goal-btn" onClick={() => setShowAddFirm(true)}>
+                        + Add Firm
                     </button>
                 </div>
 
+                {!hasFirms ? (
+                    <div className="empty-firms">
+                        <p>No prop firms configured. Add a firm like Apex, Topstep, etc. to get started.</p>
+                    </div>
+                ) : (
+                    <div className="firms-hierarchy">
+                        {Object.values(firms).map(firm => (
+                            <div key={firm.id} className={`firm-section ${firm.color}`}>
+                                <div className="firm-header-row">
+                                    <div className="firm-info">
+                                        <h3>{firm.name}</h3>
+                                        {firm.website && <a href={firm.website} target="_blank" rel="noopener noreferrer" className="firm-link">Website</a>}
+                                    </div>
+                                    <div className="firm-actions">
+                                        <button className="add-type-btn" onClick={() => setShowAddAccountType(firm.id)}>
+                                            + Add Account Type
+                                        </button>
+                                        <button className="edit-btn" onClick={() => setEditingFirm(firm)}>Edit</button>
+                                        <button className="delete-btn" onClick={() => handleDeleteFirm(firm.id)}>×</button>
+                                    </div>
+                                </div>
+
+                                <div className="account-types-grid">
+                                    {getAccountTypesForFirm(firm.id).map(type => (
+                                        <AccountTypeCard
+                                            key={type.id}
+                                            type={type}
+                                            onEdit={() => setEditingAccountType(type)}
+                                            onDelete={() => handleDeleteAccountType(type.id)}
+                                        />
+                                    ))}
+                                    {getAccountTypesForFirm(firm.id).length === 0 && (
+                                        <p className="no-types">No account types. Click "+ Add Account Type" above.</p>
+                                    )}
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+                )}
+
+                {/* Modals */}
                 {showAddFirm && (
                     <FirmForm
                         onSave={async (data) => {
@@ -136,19 +188,63 @@ export default function MoneyTracker() {
                         onCancel={() => setEditingFirm(null)}
                     />
                 )}
+
+                {showAddAccountType && (
+                    <AccountTypeForm
+                        firmId={showAddAccountType}
+                        firmColor={firms[showAddAccountType]?.color}
+                        onSave={async (data) => {
+                            await addAccountType({ ...data, firmId: showAddAccountType });
+                            setShowAddAccountType(null);
+                        }}
+                        onCancel={() => setShowAddAccountType(null)}
+                    />
+                )}
+
+                {editingAccountType && (
+                    <AccountTypeForm
+                        type={editingAccountType}
+                        firmId={editingAccountType.firmId}
+                        firms={firms}
+                        onSave={async (data) => {
+                            await updateAccountType(editingAccountType.id, data);
+                            setEditingAccountType(null);
+                        }}
+                        onCancel={() => setEditingAccountType(null)}
+                    />
+                )}
+
+                {deleteFirmConfirm && (
+                    <DeleteFirmModal
+                        firmName={firms[deleteFirmConfirm.firmId]?.name}
+                        accountTypes={deleteFirmConfirm.accountTypes}
+                        accounts={deleteFirmConfirm.accounts}
+                        onConfirm={confirmDeleteFirm}
+                        onCancel={() => setDeleteFirmConfirm(null)}
+                    />
+                )}
+
+                {deleteTypeConfirm && (
+                    <DeleteTypeModal
+                        typeName={accountTypes[deleteTypeConfirm.typeId]?.name}
+                        accounts={deleteTypeConfirm.accounts}
+                        onConfirm={confirmDeleteAccountType}
+                        onCancel={() => setDeleteTypeConfirm(null)}
+                    />
+                )}
             </section>
 
             <section className="money-tracker">
                 <h2>Money Tracker</h2>
                 <div className="money-grid">
                     <MoneyCard title="Total Spent" value={`$${stats.totalSpent.toLocaleString()}`} type="spent" />
-                    {Object.values(firms).map(firm => (
+                    {Object.values(accountTypes).map(type => (
                         <MoneyCard
-                            key={firm.id}
-                            title={`${firm.name} Evals`}
-                            value={`$${(stats.byFirm[firm.id]?.evalSpent || 0).toLocaleString()}`}
-                            subtitle={`${stats.byFirm[firm.id]?.evalCount || 0} evals`}
-                            type={firm.color || 'blue'}
+                            key={type.id}
+                            title={`${type.name} Evals`}
+                            value={`$${(stats.byAccountType[type.id]?.evalSpent || 0).toLocaleString()}`}
+                            subtitle={`${stats.byAccountType[type.id]?.evalCount || 0} evals`}
+                            type={type.color || 'blue'}
                         />
                     ))}
                     <MoneyCard title="Potential ROI" value={`${roi}%`} type="roi" />
@@ -187,10 +283,10 @@ export default function MoneyTracker() {
                 <div className="expense-history">
                     <h4>Recent Expenses</h4>
                     <div className="expense-list">
-                        {state.expenses.slice().reverse().slice(0, 10).map(exp => (
-                            <div key={exp.id} className={`expense-item`}>
+                        {state.expenses.slice(0, 10).map(exp => (
+                            <div key={exp.id} className="expense-item">
                                 <div className="expense-info">
-                                    <span className="expense-type">{formatExpenseType(exp.type, firms)}</span>
+                                    <span className="expense-type">{formatExpenseType(exp.type, accountTypes, firms)}</span>
                                     <span className="expense-date">{exp.date}</span>
                                     {exp.note && <span className="expense-note">{exp.note}</span>}
                                 </div>
@@ -210,35 +306,35 @@ export default function MoneyTracker() {
     );
 }
 
-function FirmCard({ firm, onEdit, onDelete }) {
+function AccountTypeCard({ type, onEdit, onDelete }) {
     return (
-        <div className={`firm-card ${firm.color || 'blue'}`}>
-            <div className="firm-header">
-                <h4>{firm.name}</h4>
-                <div className="firm-actions">
+        <div className={`account-type-card ${type.color || 'blue'}`}>
+            <div className="type-header">
+                <h4>{type.name}</h4>
+                <div className="type-actions">
                     <button className="edit-btn" onClick={onEdit}>Edit</button>
                     <button className="delete-btn" onClick={onDelete}>×</button>
                 </div>
             </div>
-            <div className="firm-details">
-                <div className="firm-stat">
+            <div className="type-details">
+                <div className="type-stat">
                     <span className="label">Eval Cost</span>
-                    <span className="value">${firm.evalCost}</span>
+                    <span className="value">${type.evalCost}</span>
                 </div>
-                <div className="firm-stat">
+                <div className="type-stat">
                     <span className="label">Activation</span>
-                    <span className="value">${firm.activationCost}</span>
+                    <span className="value">${type.activationCost}</span>
                 </div>
-                <div className="firm-stat">
+                <div className="type-stat">
                     <span className="label">Max Funded</span>
-                    <span className="value">{firm.maxFunded}</span>
+                    <span className="value">{type.maxFunded}</span>
                 </div>
-                <div className="firm-stat">
+                <div className="type-stat">
                     <span className="label">Profit Target</span>
-                    <span className="value">${firm.defaultProfitTarget}</span>
+                    <span className="value">${type.defaultProfitTarget}</span>
                 </div>
-                {firm.hasConsistencyRule && (
-                    <div className="firm-badge">50% Consistency Rule</div>
+                {type.hasConsistencyRule && (
+                    <div className="type-badge">50% Consistency Rule</div>
                 )}
             </div>
         </div>
@@ -248,13 +344,91 @@ function FirmCard({ firm, onEdit, onDelete }) {
 function FirmForm({ firm, onSave, onCancel }) {
     const [formData, setFormData] = useState({
         name: firm?.name || '',
-        accountName: firm?.accountName || '',
-        maxFunded: firm?.maxFunded || 10,
-        evalCost: firm?.evalCost || 0,
-        activationCost: firm?.activationCost || 0,
         color: firm?.color || 'blue',
-        hasConsistencyRule: firm?.hasConsistencyRule || false,
-        defaultProfitTarget: firm?.defaultProfitTarget || 3000
+        website: firm?.website || '',
+        notes: firm?.notes || ''
+    });
+
+    const colors = ['orange', 'purple', 'blue', 'green', 'red', 'teal'];
+
+    const handleSubmit = (e) => {
+        e.preventDefault();
+        if (!formData.name) return;
+        onSave(formData);
+    };
+
+    return (
+        <div className="firm-form-overlay">
+            <form className="firm-form" onSubmit={handleSubmit}>
+                <h3>{firm ? 'Edit Firm' : 'Add Prop Firm'}</h3>
+
+                <div className="form-row">
+                    <div className="form-field">
+                        <label>Firm Name</label>
+                        <input
+                            type="text"
+                            value={formData.name}
+                            onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                            placeholder="e.g., Apex, Topstep"
+                            required
+                        />
+                    </div>
+                    <div className="form-field">
+                        <label>Website (optional)</label>
+                        <input
+                            type="url"
+                            value={formData.website}
+                            onChange={(e) => setFormData({ ...formData, website: e.target.value })}
+                            placeholder="https://..."
+                        />
+                    </div>
+                </div>
+
+                <div className="form-row">
+                    <div className="form-field">
+                        <label>Color</label>
+                        <div className="color-picker">
+                            {colors.map(c => (
+                                <button
+                                    key={c}
+                                    type="button"
+                                    className={`color-option ${c} ${formData.color === c ? 'selected' : ''}`}
+                                    onClick={() => setFormData({ ...formData, color: c })}
+                                />
+                            ))}
+                        </div>
+                    </div>
+                    <div className="form-field">
+                        <label>Notes (optional)</label>
+                        <input
+                            type="text"
+                            value={formData.notes}
+                            onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
+                            placeholder="Any notes..."
+                        />
+                    </div>
+                </div>
+
+                <div className="form-actions">
+                    <button type="button" className="cancel-btn" onClick={onCancel}>Cancel</button>
+                    <button type="submit" className="save-btn">{firm ? 'Save Changes' : 'Add Firm'}</button>
+                </div>
+            </form>
+        </div>
+    );
+}
+
+function AccountTypeForm({ type, firmId, firmColor, firms, onSave, onCancel }) {
+    const [formData, setFormData] = useState({
+        name: type?.name || '',
+        accountName: type?.accountName || '',
+        firmId: type?.firmId || firmId,
+        maxFunded: type?.maxFunded || 10,
+        evalCost: type?.evalCost || 0,
+        activationCost: type?.activationCost || 0,
+        color: type?.color || firmColor || 'blue',
+        hasConsistencyRule: type?.hasConsistencyRule || false,
+        defaultProfitTarget: type?.defaultProfitTarget || 3000
     });
 
     const colors = ['orange', 'purple', 'blue', 'green', 'red', 'teal'];
@@ -275,16 +449,32 @@ function FirmForm({ firm, onSave, onCancel }) {
     return (
         <div className="firm-form-overlay">
             <form className="firm-form" onSubmit={handleSubmit}>
-                <h3>{firm ? 'Edit Account Type' : 'Add Account Type'}</h3>
+                <h3>{type ? 'Edit Account Type' : 'Add Account Type'}</h3>
+
+                {type && firms && (
+                    <div className="form-row">
+                        <div className="form-field" style={{ gridColumn: '1 / -1' }}>
+                            <label>Parent Firm</label>
+                            <select
+                                value={formData.firmId}
+                                onChange={(e) => setFormData({ ...formData, firmId: e.target.value })}
+                            >
+                                {Object.values(firms).map(f => (
+                                    <option key={f.id} value={f.id}>{f.name}</option>
+                                ))}
+                            </select>
+                        </div>
+                    </div>
+                )}
 
                 <div className="form-row">
                     <div className="form-field">
-                        <label>Name</label>
+                        <label>Account Type Name</label>
                         <input
                             type="text"
                             value={formData.name}
                             onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                            placeholder="e.g., Lucid 50K"
+                            placeholder="e.g., 50K, 100K Flex"
                             required
                         />
                     </div>
@@ -294,7 +484,7 @@ function FirmForm({ firm, onSave, onCancel }) {
                             type="text"
                             value={formData.accountName}
                             onChange={(e) => setFormData({ ...formData, accountName: e.target.value })}
-                            placeholder="e.g., Lucid Flex 50K"
+                            placeholder="e.g., Apex Flex 50K"
                         />
                     </div>
                 </div>
@@ -369,7 +559,7 @@ function FirmForm({ firm, onSave, onCancel }) {
 
                 <div className="form-actions">
                     <button type="button" className="cancel-btn" onClick={onCancel}>Cancel</button>
-                    <button type="submit" className="save-btn">{firm ? 'Save Changes' : 'Add Account Type'}</button>
+                    <button type="submit" className="save-btn">{type ? 'Save Changes' : 'Add Account Type'}</button>
                 </div>
             </form>
         </div>
@@ -386,24 +576,46 @@ function MoneyCard({ title, value, subtitle, type }) {
     );
 }
 
-function formatExpenseType(type, firms) {
-    // Check if it's a firm eval
-    if (firms[type]) {
-        return `${firms[type].name} Eval`;
-    }
-    // Check if it's a firm activation
-    const activationMatch = type.match(/^(.+)-activation$/);
-    if (activationMatch && firms[activationMatch[1]]) {
-        return `${firms[activationMatch[1]].name} Activation`;
-    }
-    return type === 'other' ? 'Other' : type;
-}
-
-function DeleteConfirmModal({ firmName, accounts, onConfirm, onCancel }) {
+function DeleteFirmModal({ firmName, accountTypes, accounts, onConfirm, onCancel }) {
     return (
         <div className="firm-form-overlay">
             <div className="delete-confirm-modal">
                 <h3>Delete {firmName}?</h3>
+                <p className="warning-text">
+                    This will permanently delete:
+                </p>
+                <ul className="delete-summary">
+                    <li>{accountTypes.length} account type{accountTypes.length !== 1 ? 's' : ''}</li>
+                    <li>{accounts.length} account{accounts.length !== 1 ? 's' : ''}</li>
+                </ul>
+                {accounts.length > 0 && (
+                    <div className="accounts-to-delete">
+                        {accounts.slice(0, 5).map(acc => (
+                            <div key={acc.id} className="acc-row">
+                                <span className="acc-name">{acc.name}</span>
+                                <span className={`acc-status ${acc.status}`}>{acc.status}</span>
+                            </div>
+                        ))}
+                        {accounts.length > 5 && <p className="more-accounts">...and {accounts.length - 5} more</p>}
+                    </div>
+                )}
+                <p className="warning-note">This action cannot be undone.</p>
+                <div className="form-actions">
+                    <button type="button" className="cancel-btn" onClick={onCancel}>Cancel</button>
+                    <button type="button" className="delete-confirm-btn" onClick={onConfirm}>
+                        Delete Everything
+                    </button>
+                </div>
+            </div>
+        </div>
+    );
+}
+
+function DeleteTypeModal({ typeName, accounts, onConfirm, onCancel }) {
+    return (
+        <div className="firm-form-overlay">
+            <div className="delete-confirm-modal">
+                <h3>Delete {typeName}?</h3>
                 <p className="warning-text">
                     This will permanently delete {accounts.length} account{accounts.length !== 1 ? 's' : ''}:
                 </p>
@@ -420,10 +632,27 @@ function DeleteConfirmModal({ firmName, accounts, onConfirm, onCancel }) {
                 <div className="form-actions">
                     <button type="button" className="cancel-btn" onClick={onCancel}>Cancel</button>
                     <button type="button" className="delete-confirm-btn" onClick={onConfirm}>
-                        Delete {firmName} & {accounts.length} Account{accounts.length !== 1 ? 's' : ''}
+                        Delete {typeName} & {accounts.length} Account{accounts.length !== 1 ? 's' : ''}
                     </button>
                 </div>
             </div>
         </div>
     );
+}
+
+function formatExpenseType(type, accountTypes, firms) {
+    // Check if it's an account type eval
+    if (accountTypes[type]) {
+        const firm = firms[accountTypes[type].firmId];
+        const firmPrefix = firm ? `${firm.name} - ` : '';
+        return `${firmPrefix}${accountTypes[type].name} Eval`;
+    }
+    // Check if it's an account type activation
+    const activationMatch = type.match(/^(.+)-activation$/);
+    if (activationMatch && accountTypes[activationMatch[1]]) {
+        const firm = firms[accountTypes[activationMatch[1]].firmId];
+        const firmPrefix = firm ? `${firm.name} - ` : '';
+        return `${firmPrefix}${accountTypes[activationMatch[1]].name} Activation`;
+    }
+    return type === 'other' ? 'Other' : type;
 }

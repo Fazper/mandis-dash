@@ -21,13 +21,16 @@
     border-color: var(--border-light);
 }
 
-.account-card.apex {
-    border-top: 3px solid var(--accent-orange);
-}
+.account-card.apex,
+.account-card.orange { border-top: 3px solid var(--accent-orange); }
 
-.account-card.lucid {
-    border-top: 3px solid var(--accent-purple);
-}
+.account-card.lucid,
+.account-card.purple { border-top: 3px solid var(--accent-purple); }
+
+.account-card.blue { border-top: 3px solid var(--accent-blue); }
+.account-card.green { border-top: 3px solid var(--accent-green); }
+.account-card.red { border-top: 3px solid var(--accent-red); }
+.account-card.teal { border-top: 3px solid #14b8a6; }
 
 .account-card h3 {
     font-size: 1rem;
@@ -52,13 +55,16 @@
     font-weight: 500;
 }
 
-.apex .account-count {
-    color: var(--accent-orange);
-}
+.apex .account-count,
+.orange .account-count { color: var(--accent-orange); }
 
-.lucid .account-count {
-    color: var(--accent-purple);
-}
+.lucid .account-count,
+.purple .account-count { color: var(--accent-purple); }
+
+.blue .account-count { color: var(--accent-blue); }
+.green .account-count { color: var(--accent-green); }
+.red .account-count { color: var(--accent-red); }
+.teal .account-count { color: #14b8a6; }
 
 .account-details {
     margin-bottom: 16px;

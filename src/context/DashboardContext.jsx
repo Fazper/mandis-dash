@@ -14,15 +14,18 @@ const defaultSettings = {
 export function DashboardProvider({ children }) {
     const { user } = useAuth();
     const [loading, setLoading] = useState(true);
-    const [firms, setFirms] = useState({});
+
+    // Hierarchy: firms → accountTypes → accounts
+    const [firms, setFirms] = useState({}); // { firmId: { id, name, color, ... } }
+    const [accountTypes, setAccountTypes] = useState({}); // { typeId: { id, firmId, name, maxFunded, ... } }
+    const [accounts, setAccounts] = useState({}); // { typeId: [accounts] }
+
     const [settings, setSettings] = useState(defaultSettings);
-    const [accounts, setAccounts] = useState({});
     const [expenses, setExpenses] = useState([]);
     const [dailyLog, setDailyLog] = useState([]);
     const [goals, setGoals] = useState([]);
     const [goalCompletions, setGoalCompletions] = useState([]);
 
-    // Load all data on mount
     useEffect(() => {
         if (user) {
             loadAllData();
@@ -34,11 +37,13 @@ export function DashboardProvider({ children }) {
     const loadAllData = async () => {
         setLoading(true);
         try {
-            // Load firms first, then other data that depends on firms
-            const loadedFirms = await loadFirms();
+            const [loadedFirms, loadedTypes] = await Promise.all([
+                loadFirms(),
+                loadAccountTypes()
+            ]);
             await Promise.all([
                 loadSettings(),
-                loadAccounts(loadedFirms),
+                loadAccounts(loadedTypes),
                 loadExpenses(),
                 loadDailyLogs(),
                 loadGoals()
@@ -49,72 +54,290 @@ export function DashboardProvider({ children }) {
         setLoading(false);
     };
 
+    // ============ FIRMS ============
     const loadFirms = async () => {
         const { data } = await supabase
-            .from('firms')
+            .from('prop_firms')
             .select('*')
             .eq('user_id', user.id)
             .order('created_at', { ascending: true });
 
-        if (data && data.length > 0) {
-            const firmsMap = {};
+        const firmsMap = {};
+        if (data) {
             data.forEach(firm => {
                 firmsMap[firm.id] = {
                     id: firm.id,
                     name: firm.name,
-                    accountName: firm.account_name,
-                    maxFunded: firm.max_funded,
-                    evalCost: parseFloat(firm.eval_cost) || 0,
-                    activationCost: parseFloat(firm.activation_cost) || 0,
                     color: firm.color || 'blue',
-                    hasConsistencyRule: firm.has_consistency_rule || false,
-                    defaultProfitTarget: parseFloat(firm.default_profit_target) || 3000
+                    website: firm.website,
+                    notes: firm.notes
                 };
             });
-            setFirms(firmsMap);
-            return firmsMap;
         }
-        // Return empty if no firms configured - user must create their own
-        setFirms({});
-        return {};
+        setFirms(firmsMap);
+        return firmsMap;
     };
 
-    const loadSettings = async () => {
-        const { data } = await supabase
-            .from('user_settings')
-            .select('*')
-            .eq('user_id', user.id)
+    const addFirm = async (firmData) => {
+        const { data: newFirm, error } = await supabase
+            .from('prop_firms')
+            .insert({
+                user_id: user.id,
+                name: firmData.name,
+                color: firmData.color || 'blue',
+                website: firmData.website || null,
+                notes: firmData.notes || null
+            })
+            .select()
             .single();
 
-        if (data) {
-            setSettings({
-                payoutEstimate: data.payout_estimate || defaultSettings.payoutEstimate,
-                payoutStartDate: data.payout_start_date || defaultSettings.payoutStartDate
-            });
+        if (error) {
+            console.error('Add firm error:', error);
+            return null;
         }
+
+        const firm = {
+            id: newFirm.id,
+            name: newFirm.name,
+            color: newFirm.color,
+            website: newFirm.website,
+            notes: newFirm.notes
+        };
+
+        setFirms(prev => ({ ...prev, [firm.id]: firm }));
+        return firm;
     };
 
-    const loadAccounts = async (currentFirms) => {
-        const firmsToUse = currentFirms || firms;
+    const updateFirm = async (firmId, updates) => {
+        const { error } = await supabase
+            .from('prop_firms')
+            .update(updates)
+            .eq('id', firmId)
+            .eq('user_id', user.id);
+
+        if (error) {
+            console.error('Update firm error:', error);
+            return;
+        }
+
+        setFirms(prev => ({
+            ...prev,
+            [firmId]: { ...prev[firmId], ...updates }
+        }));
+    };
+
+    const deleteFirm = async (firmId, confirmed = false) => {
+        // Get account types under this firm
+        const firmTypes = Object.values(accountTypes).filter(t => t.firmId === firmId);
+        // Get all accounts under those types
+        const allAccounts = firmTypes.flatMap(t => accounts[t.id] || []);
+
+        if ((firmTypes.length > 0 || allAccounts.length > 0) && !confirmed) {
+            return { needsConfirmation: true, accountTypes: firmTypes, accounts: allAccounts };
+        }
+
+        // Delete all accounts under this firm's account types
+        for (const type of firmTypes) {
+            await supabase.from('accounts').delete().eq('account_type_id', type.id);
+        }
+
+        // Delete all account types under this firm
+        await supabase.from('account_types').delete().eq('firm_id', firmId);
+
+        // Delete the firm
+        const { error } = await supabase
+            .from('prop_firms')
+            .delete()
+            .eq('id', firmId)
+            .eq('user_id', user.id);
+
+        if (error) {
+            console.error('Delete firm error:', error);
+            return { error };
+        }
+
+        // Update local state
+        setFirms(prev => {
+            const newFirms = { ...prev };
+            delete newFirms[firmId];
+            return newFirms;
+        });
+
+        setAccountTypes(prev => {
+            const newTypes = { ...prev };
+            firmTypes.forEach(t => delete newTypes[t.id]);
+            return newTypes;
+        });
+
+        setAccounts(prev => {
+            const newAccounts = { ...prev };
+            firmTypes.forEach(t => delete newAccounts[t.id]);
+            return newAccounts;
+        });
+
+        return { success: true };
+    };
+
+    // ============ ACCOUNT TYPES ============
+    const loadAccountTypes = async () => {
+        const { data } = await supabase
+            .from('account_types')
+            .select('*')
+            .eq('user_id', user.id)
+            .order('created_at', { ascending: true });
+
+        const typesMap = {};
+        if (data) {
+            data.forEach(type => {
+                typesMap[type.id] = {
+                    id: type.id,
+                    firmId: type.firm_id,
+                    name: type.name,
+                    accountName: type.account_name,
+                    maxFunded: type.max_funded,
+                    evalCost: parseFloat(type.eval_cost) || 0,
+                    activationCost: parseFloat(type.activation_cost) || 0,
+                    color: type.color || 'blue',
+                    hasConsistencyRule: type.has_consistency_rule || false,
+                    defaultProfitTarget: parseFloat(type.default_profit_target) || 3000
+                };
+            });
+        }
+        setAccountTypes(typesMap);
+        return typesMap;
+    };
+
+    const addAccountType = async (typeData) => {
+        const typeId = typeData.name.toLowerCase().replace(/\s+/g, '-');
+
+        const { data: newType, error } = await supabase
+            .from('account_types')
+            .insert({
+                id: typeId,
+                user_id: user.id,
+                firm_id: typeData.firmId,
+                name: typeData.name,
+                account_name: typeData.accountName || typeData.name,
+                max_funded: typeData.maxFunded || 10,
+                eval_cost: typeData.evalCost || 0,
+                activation_cost: typeData.activationCost || 0,
+                color: typeData.color || firms[typeData.firmId]?.color || 'blue',
+                has_consistency_rule: typeData.hasConsistencyRule || false,
+                default_profit_target: typeData.defaultProfitTarget || 3000
+            })
+            .select()
+            .single();
+
+        if (error) {
+            console.error('Add account type error:', error);
+            return null;
+        }
+
+        const accountType = {
+            id: newType.id,
+            firmId: newType.firm_id,
+            name: newType.name,
+            accountName: newType.account_name,
+            maxFunded: newType.max_funded,
+            evalCost: parseFloat(newType.eval_cost) || 0,
+            activationCost: parseFloat(newType.activation_cost) || 0,
+            color: newType.color,
+            hasConsistencyRule: newType.has_consistency_rule,
+            defaultProfitTarget: parseFloat(newType.default_profit_target) || 3000
+        };
+
+        setAccountTypes(prev => ({ ...prev, [accountType.id]: accountType }));
+        setAccounts(prev => ({ ...prev, [accountType.id]: [] }));
+        return accountType;
+    };
+
+    const updateAccountType = async (typeId, updates) => {
+        const dbUpdates = {};
+        if (updates.name !== undefined) dbUpdates.name = updates.name;
+        if (updates.accountName !== undefined) dbUpdates.account_name = updates.accountName;
+        if (updates.firmId !== undefined) dbUpdates.firm_id = updates.firmId;
+        if (updates.maxFunded !== undefined) dbUpdates.max_funded = updates.maxFunded;
+        if (updates.evalCost !== undefined) dbUpdates.eval_cost = updates.evalCost;
+        if (updates.activationCost !== undefined) dbUpdates.activation_cost = updates.activationCost;
+        if (updates.color !== undefined) dbUpdates.color = updates.color;
+        if (updates.hasConsistencyRule !== undefined) dbUpdates.has_consistency_rule = updates.hasConsistencyRule;
+        if (updates.defaultProfitTarget !== undefined) dbUpdates.default_profit_target = updates.defaultProfitTarget;
+
+        const { error } = await supabase
+            .from('account_types')
+            .update(dbUpdates)
+            .eq('id', typeId)
+            .eq('user_id', user.id);
+
+        if (error) {
+            console.error('Update account type error:', error);
+            return;
+        }
+
+        setAccountTypes(prev => ({
+            ...prev,
+            [typeId]: { ...prev[typeId], ...updates }
+        }));
+    };
+
+    const deleteAccountType = async (typeId, confirmed = false) => {
+        const typeAccounts = accounts[typeId] || [];
+
+        if (typeAccounts.length > 0 && !confirmed) {
+            return { needsConfirmation: true, accounts: typeAccounts };
+        }
+
+        // Delete accounts first
+        if (typeAccounts.length > 0) {
+            await supabase.from('accounts').delete().eq('account_type_id', typeId);
+        }
+
+        const { error } = await supabase
+            .from('account_types')
+            .delete()
+            .eq('id', typeId)
+            .eq('user_id', user.id);
+
+        if (error) {
+            console.error('Delete account type error:', error);
+            return { error };
+        }
+
+        setAccountTypes(prev => {
+            const newTypes = { ...prev };
+            delete newTypes[typeId];
+            return newTypes;
+        });
+
+        setAccounts(prev => {
+            const newAccounts = { ...prev };
+            delete newAccounts[typeId];
+            return newAccounts;
+        });
+
+        return { success: true };
+    };
+
+    // ============ ACCOUNTS ============
+    const loadAccounts = async (currentTypes) => {
+        const typesToUse = currentTypes || accountTypes;
         const { data } = await supabase
             .from('accounts')
             .select('*')
             .eq('user_id', user.id)
             .order('created_at', { ascending: true });
 
-        // Group accounts by firm_id
         const grouped = {};
-        Object.keys(firmsToUse).forEach(firmId => {
-            grouped[firmId] = [];
+        Object.keys(typesToUse).forEach(typeId => {
+            grouped[typeId] = [];
         });
 
         if (data) {
             data.forEach(acc => {
-                // Initialize array if firm exists (even if not in current firms list)
-                if (!grouped[acc.firm_id]) {
-                    grouped[acc.firm_id] = [];
+                if (!grouped[acc.account_type_id]) {
+                    grouped[acc.account_type_id] = [];
                 }
-                grouped[acc.firm_id].push({
+                grouped[acc.account_type_id].push({
                     id: acc.id,
                     name: acc.name,
                     status: acc.status,
@@ -131,6 +354,201 @@ export function DashboardProvider({ children }) {
         setAccounts(grouped);
     };
 
+    const addAccount = async (accountTypeId, evalCost = 0, profitTarget = null, createdDate = null) => {
+        const accountType = accountTypes[accountTypeId];
+        if (!accountType) return;
+
+        const typeAccounts = accounts[accountTypeId] || [];
+        const passedCount = typeAccounts.filter(a => a.status === 'passed' || a.status === 'funded').length;
+
+        if (passedCount >= accountType.maxFunded) {
+            alert(`Max ${accountType.maxFunded} funded accounts reached for ${accountType.name}!`);
+            return;
+        }
+
+        const accountNum = typeAccounts.length + 1;
+        const accountName = `${accountType.accountName} #${accountNum}`;
+        const dateToUse = createdDate || new Date().toISOString().split('T')[0];
+
+        const { data: newAccount, error } = await supabase
+            .from('accounts')
+            .insert({
+                user_id: user.id,
+                account_type_id: accountTypeId,
+                name: accountName,
+                status: 'in-progress',
+                eval_cost: evalCost,
+                profit_target: profitTarget || accountType.defaultProfitTarget,
+                balance: 0,
+                created_at: dateToUse
+            })
+            .select()
+            .single();
+
+        if (error) {
+            console.error('Add account error:', error);
+            return;
+        }
+
+        // Add expense if eval cost provided
+        if (evalCost > 0) {
+            await addExpense(accountTypeId, evalCost, accountName, dateToUse);
+        }
+
+        // Auto-complete goals
+        if (!createdDate || createdDate === new Date().toISOString().split('T')[0]) {
+            await autoCompleteGoals('buy_eval', accountTypeId);
+        }
+
+        setAccounts(prev => ({
+            ...prev,
+            [accountTypeId]: [...(prev[accountTypeId] || []), {
+                id: newAccount.id,
+                name: accountName,
+                status: 'in-progress',
+                evalCost,
+                profitTarget: profitTarget || accountType.defaultProfitTarget,
+                balance: 0,
+                passedDate: null,
+                fundedDate: null,
+                createdDate: dateToUse
+            }]
+        }));
+    };
+
+    const updateAccountStatus = async (accountTypeId, accountId, status, cost = 0) => {
+        const accountType = accountTypes[accountTypeId];
+        const today = new Date().toISOString().split('T')[0];
+
+        const updates = { status };
+        if (status === 'passed') updates.passed_date = today;
+        else if (status === 'funded') updates.funded_date = today;
+
+        const { error } = await supabase
+            .from('accounts')
+            .update(updates)
+            .eq('id', accountId);
+
+        if (error) {
+            console.error('Update status error:', error);
+            return;
+        }
+
+        if (cost > 0 && (status === 'passed' || status === 'funded')) {
+            const acc = accounts[accountTypeId]?.find(a => a.id === accountId);
+            const expenseType = status === 'funded' ? `${accountTypeId}-activation` : accountTypeId;
+            await addExpense(expenseType, cost, `${acc?.name || accountType.accountName} - ${status}`);
+        }
+
+        setAccounts(prev => ({
+            ...prev,
+            [accountTypeId]: (prev[accountTypeId] || []).map(acc =>
+                acc.id === accountId
+                    ? {
+                        ...acc,
+                        status,
+                        passedDate: status === 'passed' ? today : acc.passedDate,
+                        fundedDate: status === 'funded' ? today : acc.fundedDate
+                    }
+                    : acc
+            )
+        }));
+
+        if (status === 'funded') {
+            await autoCompleteGoals('fund_account', accountTypeId);
+        }
+    };
+
+    const updateAccountBalance = async (accountTypeId, accountId, balance) => {
+        const balanceNum = parseFloat(balance) || 0;
+
+        const { error } = await supabase
+            .from('accounts')
+            .update({ balance: balanceNum })
+            .eq('id', accountId);
+
+        if (error) {
+            console.error('Update balance error:', error);
+            return;
+        }
+
+        setAccounts(prev => ({
+            ...prev,
+            [accountTypeId]: (prev[accountTypeId] || []).map(acc =>
+                acc.id === accountId ? { ...acc, balance: balanceNum } : acc
+            )
+        }));
+    };
+
+    const updateAccountProfitTarget = async (accountTypeId, accountId, profitTarget) => {
+        const targetNum = parseFloat(profitTarget) || 0;
+
+        const { error } = await supabase
+            .from('accounts')
+            .update({ profit_target: targetNum })
+            .eq('id', accountId);
+
+        if (error) {
+            console.error('Update profit target error:', error);
+            return;
+        }
+
+        setAccounts(prev => ({
+            ...prev,
+            [accountTypeId]: (prev[accountTypeId] || []).map(acc =>
+                acc.id === accountId ? { ...acc, profitTarget: targetNum } : acc
+            )
+        }));
+    };
+
+    const deleteAccount = async (accountTypeId, accountId) => {
+        const { error } = await supabase
+            .from('accounts')
+            .delete()
+            .eq('id', accountId);
+
+        if (error) {
+            console.error('Delete account error:', error);
+            return;
+        }
+
+        setAccounts(prev => ({
+            ...prev,
+            [accountTypeId]: (prev[accountTypeId] || []).filter(acc => acc.id !== accountId)
+        }));
+    };
+
+    // ============ SETTINGS ============
+    const loadSettings = async () => {
+        const { data } = await supabase
+            .from('user_settings')
+            .select('*')
+            .eq('user_id', user.id)
+            .single();
+
+        if (data) {
+            setSettings({
+                payoutEstimate: data.payout_estimate || defaultSettings.payoutEstimate,
+                payoutStartDate: data.payout_start_date || defaultSettings.payoutStartDate
+            });
+        }
+    };
+
+    const updateSetting = async (key, value) => {
+        const newSettings = { ...settings, [key]: value };
+        setSettings(newSettings);
+
+        await supabase
+            .from('user_settings')
+            .upsert({
+                user_id: user.id,
+                payout_estimate: newSettings.payoutEstimate,
+                payout_start_date: newSettings.payoutStartDate,
+                updated_at: new Date().toISOString()
+            });
+    };
+
+    // ============ EXPENSES ============
     const loadExpenses = async () => {
         const { data } = await supabase
             .from('expenses')
@@ -149,368 +567,6 @@ export function DashboardProvider({ children }) {
         }
     };
 
-    const loadDailyLogs = async () => {
-        const { data } = await supabase
-            .from('daily_logs')
-            .select('*')
-            .eq('user_id', user.id)
-            .order('date', { ascending: false });
-
-        if (data) {
-            setDailyLog(data.map(log => ({
-                id: log.id,
-                date: log.date,
-                boughtApex: log.bought_apex,
-                boughtLucid: log.bought_lucid,
-                tradedOpen: log.traded_open,
-                accountsPassed: log.accounts_passed,
-                notes: log.notes
-            })));
-        }
-    };
-
-    const loadGoals = async () => {
-        // Load goals
-        const { data: goalsData } = await supabase
-            .from('goals')
-            .select('*')
-            .eq('user_id', user.id)
-            .eq('is_active', true)
-            .order('created_at', { ascending: true });
-
-        if (goalsData) {
-            setGoals(goalsData.map(g => ({
-                id: g.id,
-                title: g.title,
-                description: g.description,
-                goalType: g.goal_type,
-                targetCount: g.target_count,
-                actionType: g.action_type,
-                firmId: g.firm_id,
-                startDate: g.start_date,
-                endDate: g.end_date,
-                isActive: g.is_active
-            })));
-        }
-
-        // Load today's completions
-        const today = new Date().toISOString().split('T')[0];
-        const { data: completionsData } = await supabase
-            .from('goal_completions')
-            .select('*')
-            .eq('user_id', user.id)
-            .eq('completion_date', today);
-
-        if (completionsData) {
-            setGoalCompletions(completionsData.map(c => ({
-                id: c.id,
-                goalId: c.goal_id,
-                completionDate: c.completion_date,
-                completedCount: c.completed_count,
-                autoCompleted: c.auto_completed
-            })));
-        }
-    };
-
-    // Settings functions
-    const updateSetting = async (key, value) => {
-        const newSettings = { ...settings, [key]: value };
-        setSettings(newSettings);
-
-        await supabase
-            .from('user_settings')
-            .upsert({
-                user_id: user.id,
-                payout_estimate: newSettings.payoutEstimate,
-                payout_start_date: newSettings.payoutStartDate,
-                updated_at: new Date().toISOString()
-            });
-    };
-
-    // Firm management functions
-    const addFirm = async (firmData) => {
-        const firmId = firmData.id || firmData.name.toLowerCase().replace(/\s+/g, '');
-
-        const { data: newFirm, error } = await supabase
-            .from('firms')
-            .insert({
-                id: firmId,
-                user_id: user.id,
-                name: firmData.name,
-                account_name: firmData.accountName || firmData.name,
-                max_funded: firmData.maxFunded || 10,
-                eval_cost: firmData.evalCost || 0,
-                activation_cost: firmData.activationCost || 0,
-                color: firmData.color || 'blue',
-                has_consistency_rule: firmData.hasConsistencyRule || false,
-                default_profit_target: firmData.defaultProfitTarget || 3000
-            })
-            .select()
-            .single();
-
-        if (error) {
-            console.error('Add firm error:', error);
-            return null;
-        }
-
-        const firm = {
-            id: newFirm.id,
-            name: newFirm.name,
-            accountName: newFirm.account_name,
-            maxFunded: newFirm.max_funded,
-            evalCost: parseFloat(newFirm.eval_cost) || 0,
-            activationCost: parseFloat(newFirm.activation_cost) || 0,
-            color: newFirm.color,
-            hasConsistencyRule: newFirm.has_consistency_rule,
-            defaultProfitTarget: parseFloat(newFirm.default_profit_target) || 3000
-        };
-
-        setFirms(prev => ({ ...prev, [firmId]: firm }));
-        setAccounts(prev => ({ ...prev, [firmId]: [] }));
-        return firm;
-    };
-
-    const updateFirm = async (firmId, updates) => {
-        const dbUpdates = {};
-        if (updates.name !== undefined) dbUpdates.name = updates.name;
-        if (updates.accountName !== undefined) dbUpdates.account_name = updates.accountName;
-        if (updates.maxFunded !== undefined) dbUpdates.max_funded = updates.maxFunded;
-        if (updates.evalCost !== undefined) dbUpdates.eval_cost = updates.evalCost;
-        if (updates.activationCost !== undefined) dbUpdates.activation_cost = updates.activationCost;
-        if (updates.color !== undefined) dbUpdates.color = updates.color;
-        if (updates.hasConsistencyRule !== undefined) dbUpdates.has_consistency_rule = updates.hasConsistencyRule;
-        if (updates.defaultProfitTarget !== undefined) dbUpdates.default_profit_target = updates.defaultProfitTarget;
-
-        const { error } = await supabase
-            .from('firms')
-            .update(dbUpdates)
-            .eq('id', firmId)
-            .eq('user_id', user.id);
-
-        if (error) {
-            console.error('Update firm error:', error);
-            return;
-        }
-
-        setFirms(prev => ({
-            ...prev,
-            [firmId]: { ...prev[firmId], ...updates }
-        }));
-    };
-
-    const deleteFirm = async (firmId, confirmed = false) => {
-        // Check if there are accounts under this firm
-        const firmAccounts = accounts[firmId] || [];
-
-        if (firmAccounts.length > 0 && !confirmed) {
-            // Return the accounts so the UI can show a detailed warning
-            return { needsConfirmation: true, accounts: firmAccounts };
-        }
-
-        // Delete accounts first if any
-        if (firmAccounts.length > 0) {
-            await supabase.from('accounts').delete().eq('firm_id', firmId).eq('user_id', user.id);
-        }
-
-        const { error } = await supabase
-            .from('firms')
-            .delete()
-            .eq('id', firmId)
-            .eq('user_id', user.id);
-
-        if (error) {
-            console.error('Delete firm error:', error);
-            return { error };
-        }
-
-        setFirms(prev => {
-            const newFirms = { ...prev };
-            delete newFirms[firmId];
-            return newFirms;
-        });
-        setAccounts(prev => {
-            const newAccounts = { ...prev };
-            delete newAccounts[firmId];
-            return newAccounts;
-        });
-
-        return { success: true };
-    };
-
-    // Account functions
-    const addAccountWithCost = async (firmId, evalCost = 0, profitTarget = null, createdDate = null) => {
-        const firm = firms[firmId];
-        if (!firm) return;
-
-        const firmAccounts = accounts[firmId] || [];
-        const passedCount = firmAccounts.filter(a => a.status === 'passed' || a.status === 'funded').length;
-
-        if (passedCount >= firm.maxFunded) {
-            alert(`Max ${firm.maxFunded} ${firm.name} funded accounts reached!`);
-            return;
-        }
-
-        const accountNum = firmAccounts.length + 1;
-        const accountName = `${firm.accountName} #${accountNum}`;
-        const dateToUse = createdDate || new Date().toISOString().split('T')[0];
-
-        // Insert account
-        const { data: newAccount, error } = await supabase
-            .from('accounts')
-            .insert({
-                user_id: user.id,
-                firm_id: firmId,
-                name: accountName,
-                status: 'in-progress',
-                eval_cost: evalCost,
-                profit_target: profitTarget || firm.defaultProfitTarget,
-                balance: 0,
-                created_at: dateToUse
-            })
-            .select()
-            .single();
-
-        if (error) {
-            console.error('Add account error:', error);
-            return;
-        }
-
-        // Add expense if eval cost provided (use same date)
-        if (evalCost > 0) {
-            await addExpense(firmId, evalCost, accountName, dateToUse);
-        }
-
-        // Auto-complete goals for buying eval (only for today)
-        if (!createdDate || createdDate === new Date().toISOString().split('T')[0]) {
-            await autoCompleteGoals('buy_eval', firmId);
-        }
-
-        // Update local state
-        setAccounts(prev => ({
-            ...prev,
-            [firmId]: [...(prev[firmId] || []), {
-                id: newAccount.id,
-                name: accountName,
-                status: 'in-progress',
-                evalCost,
-                profitTarget: profitTarget || firm.defaultProfitTarget,
-                balance: 0,
-                passedDate: null,
-                fundedDate: null,
-                createdDate: dateToUse
-            }]
-        }));
-    };
-
-    const updateAccountStatus = async (firmId, accountId, status, cost = 0) => {
-        const firm = firms[firmId];
-        const today = new Date().toISOString().split('T')[0];
-
-        const updates = { status };
-        if (status === 'passed') {
-            updates.passed_date = today;
-        } else if (status === 'funded') {
-            updates.funded_date = today;
-        }
-
-        const { error } = await supabase
-            .from('accounts')
-            .update(updates)
-            .eq('id', accountId);
-
-        if (error) {
-            console.error('Update status error:', error);
-            return;
-        }
-
-        // Add expense for activation/pass cost
-        if (cost > 0 && (status === 'passed' || status === 'funded')) {
-            const acc = accounts[firmId]?.find(a => a.id === accountId);
-            const expenseType = status === 'funded' ? `${firmId}-activation` : firmId;
-            await addExpense(expenseType, cost, `${acc?.name || firm.accountName} - ${status}`);
-        }
-
-        // Update local state
-        setAccounts(prev => ({
-            ...prev,
-            [firmId]: (prev[firmId] || []).map(acc =>
-                acc.id === accountId
-                    ? {
-                        ...acc,
-                        status,
-                        passedDate: status === 'passed' ? today : acc.passedDate,
-                        fundedDate: status === 'funded' ? today : acc.fundedDate
-                    }
-                    : acc
-            )
-        }));
-
-        // Auto-complete goals when account is funded
-        if (status === 'funded') {
-            await autoCompleteGoals('fund_account', firmId);
-        }
-    };
-
-    const updateAccountBalance = async (firmId, accountId, balance) => {
-        const balanceNum = parseFloat(balance) || 0;
-
-        const { error } = await supabase
-            .from('accounts')
-            .update({ balance: balanceNum })
-            .eq('id', accountId);
-
-        if (error) {
-            console.error('Update balance error:', error);
-            return;
-        }
-
-        setAccounts(prev => ({
-            ...prev,
-            [firmId]: (prev[firmId] || []).map(acc =>
-                acc.id === accountId ? { ...acc, balance: balanceNum } : acc
-            )
-        }));
-    };
-
-    const updateAccountProfitTarget = async (firmId, accountId, profitTarget) => {
-        const targetNum = parseFloat(profitTarget) || 0;
-
-        const { error } = await supabase
-            .from('accounts')
-            .update({ profit_target: targetNum })
-            .eq('id', accountId);
-
-        if (error) {
-            console.error('Update profit target error:', error);
-            return;
-        }
-
-        setAccounts(prev => ({
-            ...prev,
-            [firmId]: (prev[firmId] || []).map(acc =>
-                acc.id === accountId ? { ...acc, profitTarget: targetNum } : acc
-            )
-        }));
-    };
-
-    const deleteAccount = async (firmId, accountId) => {
-        const { error } = await supabase
-            .from('accounts')
-            .delete()
-            .eq('id', accountId);
-
-        if (error) {
-            console.error('Delete account error:', error);
-            return;
-        }
-
-        setAccounts(prev => ({
-            ...prev,
-            [firmId]: (prev[firmId] || []).filter(acc => acc.id !== accountId)
-        }));
-    };
-
-    // Expense functions
     const addExpense = async (type, amount, note = '', date = null) => {
         const dateToUse = date || new Date().toISOString().split('T')[0];
 
@@ -531,7 +587,6 @@ export function DashboardProvider({ children }) {
             return;
         }
 
-        // Insert in correct position based on date
         setExpenses(prev => {
             const newExp = {
                 id: newExpense.id,
@@ -540,9 +595,7 @@ export function DashboardProvider({ children }) {
                 note,
                 date: dateToUse
             };
-            // Insert sorted by date (newest first)
-            const newList = [...prev, newExp].sort((a, b) => b.date.localeCompare(a.date));
-            return newList;
+            return [...prev, newExp].sort((a, b) => b.date.localeCompare(a.date));
         });
     };
 
@@ -560,7 +613,67 @@ export function DashboardProvider({ children }) {
         setExpenses(prev => prev.filter(e => e.id !== expenseId));
     };
 
-    // Goal functions
+    // ============ DAILY LOGS ============
+    const loadDailyLogs = async () => {
+        const { data } = await supabase
+            .from('daily_logs')
+            .select('*')
+            .eq('user_id', user.id)
+            .order('date', { ascending: false });
+
+        if (data) {
+            setDailyLog(data.map(log => ({
+                id: log.id,
+                date: log.date,
+                tradedOpen: log.traded_open,
+                accountsPassed: log.accounts_passed,
+                notes: log.notes
+            })));
+        }
+    };
+
+    // ============ GOALS ============
+    const loadGoals = async () => {
+        const { data: goalsData } = await supabase
+            .from('goals')
+            .select('*')
+            .eq('user_id', user.id)
+            .eq('is_active', true)
+            .order('created_at', { ascending: true });
+
+        if (goalsData) {
+            setGoals(goalsData.map(g => ({
+                id: g.id,
+                title: g.title,
+                description: g.description,
+                goalType: g.goal_type,
+                targetCount: g.target_count,
+                actionType: g.action_type,
+                accountTypeId: g.firm_id, // This references account_type now
+                startDate: g.start_date,
+                endDate: g.end_date,
+                isActive: g.is_active
+            })));
+        }
+
+        const today = new Date().toISOString().split('T')[0];
+        const { data: completionsData } = await supabase
+            .from('goal_completions')
+            .select('*')
+            .eq('user_id', user.id)
+            .eq('completion_date', today);
+
+        if (completionsData) {
+            setGoalCompletions(completionsData.map(c => ({
+                id: c.id,
+                goalId: c.goal_id,
+                completionDate: c.completion_date,
+                completedCount: c.completed_count,
+                autoCompleted: c.auto_completed
+            })));
+        }
+    };
+
     const addGoal = async (goalData) => {
         const { data: newGoal, error } = await supabase
             .from('goals')
@@ -571,7 +684,7 @@ export function DashboardProvider({ children }) {
                 goal_type: goalData.goalType || 'daily',
                 target_count: goalData.targetCount || 1,
                 action_type: goalData.actionType || 'custom',
-                firm_id: goalData.firmId || null,
+                firm_id: goalData.accountTypeId || null,
                 start_date: goalData.startDate || new Date().toISOString().split('T')[0],
                 end_date: goalData.endDate || null,
                 is_active: true
@@ -591,7 +704,7 @@ export function DashboardProvider({ children }) {
             goalType: newGoal.goal_type,
             targetCount: newGoal.target_count,
             actionType: newGoal.action_type,
-            firmId: newGoal.firm_id,
+            accountTypeId: newGoal.firm_id,
             startDate: newGoal.start_date,
             endDate: newGoal.end_date,
             isActive: newGoal.is_active
@@ -621,7 +734,6 @@ export function DashboardProvider({ children }) {
         const existing = goalCompletions.find(c => c.goalId === goalId);
 
         if (completed && !existing) {
-            // Mark as complete
             const { data, error } = await supabase
                 .from('goal_completions')
                 .insert({
@@ -647,7 +759,6 @@ export function DashboardProvider({ children }) {
                 autoCompleted: data.auto_completed
             }]);
         } else if (!completed && existing) {
-            // Mark as incomplete
             const { error } = await supabase
                 .from('goal_completions')
                 .delete()
@@ -662,19 +773,15 @@ export function DashboardProvider({ children }) {
         }
     };
 
-    // Auto-complete goals based on action type
-    const autoCompleteGoals = async (actionType, firmId = null) => {
+    const autoCompleteGoals = async (actionType, accountTypeId = null) => {
         const today = new Date().toISOString().split('T')[0];
 
-        // Find goals that match this action
         const matchingGoals = goals.filter(g => {
             if (g.actionType !== actionType) return false;
-            if (g.firmId && g.firmId !== firmId) return false;
+            if (g.accountTypeId && g.accountTypeId !== accountTypeId) return false;
             if (g.startDate > today) return false;
             if (g.endDate && g.endDate < today) return false;
-            // Check if already completed today
-            const alreadyCompleted = goalCompletions.find(c => c.goalId === g.id);
-            return !alreadyCompleted;
+            return !goalCompletions.find(c => c.goalId === g.id);
         });
 
         for (const goal of matchingGoals) {
@@ -718,29 +825,31 @@ export function DashboardProvider({ children }) {
             }));
     };
 
-    // Reset all data
+    // ============ UTILITIES ============
     const resetData = async () => {
         if (!confirm('Are you sure you want to reset ALL data? This cannot be undone.')) return;
 
         await Promise.all([
             supabase.from('accounts').delete().eq('user_id', user.id),
+            supabase.from('account_types').delete().eq('user_id', user.id),
+            supabase.from('prop_firms').delete().eq('user_id', user.id),
             supabase.from('expenses').delete().eq('user_id', user.id),
             supabase.from('daily_logs').delete().eq('user_id', user.id),
+            supabase.from('goals').delete().eq('user_id', user.id),
             supabase.from('user_settings').delete().eq('user_id', user.id)
         ]);
 
         window.location.reload();
     };
 
-    // Computed values
     const calculateMoneyStats = () => {
         const stats = {
             totalSpent: 0,
-            byFirm: {}
+            byAccountType: {}
         };
 
-        Object.keys(firms).forEach(firmId => {
-            stats.byFirm[firmId] = {
+        Object.keys(accountTypes).forEach(typeId => {
+            stats.byAccountType[typeId] = {
                 evalSpent: 0,
                 evalCount: 0,
                 activationSpent: 0,
@@ -751,13 +860,13 @@ export function DashboardProvider({ children }) {
         expenses.forEach(exp => {
             stats.totalSpent += exp.amount;
 
-            Object.keys(firms).forEach(firmId => {
-                if (exp.type === firmId) {
-                    stats.byFirm[firmId].evalSpent += exp.amount;
-                    stats.byFirm[firmId].evalCount++;
-                } else if (exp.type === `${firmId}-activation`) {
-                    stats.byFirm[firmId].activationSpent += exp.amount;
-                    stats.byFirm[firmId].activationCount++;
+            Object.keys(accountTypes).forEach(typeId => {
+                if (exp.type === typeId) {
+                    stats.byAccountType[typeId].evalSpent += exp.amount;
+                    stats.byAccountType[typeId].evalCount++;
+                } else if (exp.type === `${typeId}-activation`) {
+                    stats.byAccountType[typeId].activationSpent += exp.amount;
+                    stats.byAccountType[typeId].activationCount++;
                 }
             });
         });
@@ -766,17 +875,22 @@ export function DashboardProvider({ children }) {
     };
 
     const getTotalPassed = () => {
-        return Object.keys(firms).reduce((total, firmId) => {
-            const firmAccounts = accounts[firmId] || [];
-            return total + firmAccounts.filter(a => a.status === 'passed' || a.status === 'funded').length;
+        return Object.keys(accountTypes).reduce((total, typeId) => {
+            const typeAccounts = accounts[typeId] || [];
+            return total + typeAccounts.filter(a => a.status === 'passed' || a.status === 'funded').length;
         }, 0);
     };
 
-    const getFirmLimit = (firmId) => {
-        return firms[firmId]?.maxFunded || 0;
+    const getAccountTypeLimit = (typeId) => {
+        return accountTypes[typeId]?.maxFunded || 0;
     };
 
-    // Build state object for components that expect it
+    // Helper to get account types for a specific firm
+    const getAccountTypesForFirm = (firmId) => {
+        return Object.values(accountTypes).filter(t => t.firmId === firmId);
+    };
+
+    // Build state object for backward compatibility
     const state = {
         accounts,
         expenses,
@@ -789,27 +903,40 @@ export function DashboardProvider({ children }) {
         <DashboardContext.Provider value={{
             state,
             loading,
+            // Firms
             firms,
-            goals,
             addFirm,
             updateFirm,
             deleteFirm,
-            updateSetting,
-            addExpense,
-            deleteExpense,
-            addAccountWithCost,
+            // Account Types
+            accountTypes,
+            addAccountType,
+            updateAccountType,
+            deleteAccountType,
+            getAccountTypesForFirm,
+            // Accounts
+            accounts,
+            addAccount,
             updateAccountStatus,
             updateAccountBalance,
             updateAccountProfitTarget,
             deleteAccount,
+            // Settings
+            updateSetting,
+            // Expenses
+            addExpense,
+            deleteExpense,
+            // Goals
+            goals,
             addGoal,
             deleteGoal,
             toggleGoalCompletion,
             getTodaysGoals,
+            // Utilities
             resetData,
             calculateMoneyStats,
             getTotalPassed,
-            getFirmLimit
+            getAccountTypeLimit
         }}>
             {children}
         </DashboardContext.Provider>

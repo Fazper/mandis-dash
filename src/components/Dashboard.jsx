@@ -3,7 +3,22 @@ import { NavLink } from 'react-router-dom';
 import { useDashboard } from '../context/DashboardContext';
 
 export default function Dashboard() {
-    const { state, firms, addAccountWithCost, updateAccountStatus, updateAccountBalance, updateAccountProfitTarget, deleteAccount, getFirmLimit, goals, addGoal, deleteGoal, toggleGoalCompletion, getTodaysGoals } = useDashboard();
+    const {
+        state,
+        firms,
+        accountTypes,
+        addAccount,
+        updateAccountStatus,
+        updateAccountBalance,
+        updateAccountProfitTarget,
+        deleteAccount,
+        getAccountTypeLimit,
+        goals,
+        addGoal,
+        deleteGoal,
+        toggleGoalCompletion,
+        getTodaysGoals
+    } = useDashboard();
     const [showGoalForm, setShowGoalForm] = useState(false);
     const [goalForm, setGoalForm] = useState({
         title: '',
@@ -11,11 +26,11 @@ export default function Dashboard() {
         goalType: 'daily',
         targetCount: 1,
         actionType: 'custom',
-        firmId: '',
+        accountTypeId: '',
         endDate: ''
     });
 
-    const hasFirms = Object.keys(firms).length > 0;
+    const hasAccountTypes = Object.keys(accountTypes).length > 0;
     const todaysGoals = getTodaysGoals();
 
     const handleAddGoal = async () => {
@@ -23,7 +38,7 @@ export default function Dashboard() {
 
         await addGoal({
             ...goalForm,
-            firmId: goalForm.firmId || null,
+            accountTypeId: goalForm.accountTypeId || null,
             endDate: goalForm.endDate || null
         });
 
@@ -33,22 +48,22 @@ export default function Dashboard() {
             goalType: 'daily',
             targetCount: 1,
             actionType: 'custom',
-            firmId: '',
+            accountTypeId: '',
             endDate: ''
         });
         setShowGoalForm(false);
     };
 
-    // Show empty state if no firms configured
-    if (!hasFirms) {
+    // Show empty state if no account types configured
+    if (!hasAccountTypes) {
         return (
             <div className="dashboard-tab">
                 <div className="empty-state">
                     <div className="empty-icon">🏦</div>
                     <h2>No Account Types Configured</h2>
-                    <p>You need to set up your account types (firms) before you can start tracking accounts.</p>
+                    <p>You need to set up your prop firms and account types before you can start tracking accounts.</p>
                     <NavLink to="/money" className="setup-btn">
-                        Go to Money Tab to Add Account Types
+                        Go to Money Tab to Add Firms & Account Types
                     </NavLink>
                 </div>
             </div>
@@ -102,15 +117,19 @@ export default function Dashboard() {
                                 </select>
                             </div>
                             <div className="form-field">
-                                <label>Specific Firm (optional)</label>
+                                <label>Specific Account Type (optional)</label>
                                 <select
-                                    value={goalForm.firmId}
-                                    onChange={(e) => setGoalForm(prev => ({ ...prev, firmId: e.target.value }))}
+                                    value={goalForm.accountTypeId}
+                                    onChange={(e) => setGoalForm(prev => ({ ...prev, accountTypeId: e.target.value }))}
                                 >
-                                    <option value="">Any firm</option>
-                                    {Object.values(firms).map(firm => (
-                                        <option key={firm.id} value={firm.id}>{firm.name}</option>
-                                    ))}
+                                    <option value="">Any account type</option>
+                                    {Object.values(accountTypes).map(type => {
+                                        const firm = firms[type.firmId];
+                                        const firmPrefix = firm ? `${firm.name} - ` : '';
+                                        return (
+                                            <option key={type.id} value={type.id}>{firmPrefix}{type.name}</option>
+                                        );
+                                    })}
                                 </select>
                             </div>
                         </div>
@@ -150,6 +169,7 @@ export default function Dashboard() {
                             <GoalItem
                                 key={goal.id}
                                 goal={goal}
+                                accountTypes={accountTypes}
                                 firms={firms}
                                 onToggle={(completed) => toggleGoalCompletion(goal.id, completed)}
                                 onDelete={() => deleteGoal(goal.id)}
@@ -162,24 +182,26 @@ export default function Dashboard() {
             <section className="accounts">
                 <h2>My Accounts</h2>
                 <div className="accounts-grid">
-                    {Object.values(firms).map(firm => {
-                        const accounts = state.accounts[firm.id] || [];
-                        const passed = accounts.filter(a => a.status === 'passed').length;
+                    {Object.values(accountTypes).map(type => {
+                        const typeAccounts = state.accounts[type.id] || [];
+                        const passed = typeAccounts.filter(a => a.status === 'passed' || a.status === 'funded').length;
+                        const firm = firms[type.firmId];
 
                         return (
                             <AccountCard
-                                key={firm.id}
+                                key={type.id}
+                                accountType={type}
                                 firm={firm}
-                                accounts={accounts}
+                                accounts={typeAccounts}
                                 passed={passed}
-                                limit={getFirmLimit(firm.id)}
-                                defaultEvalCost={firm.evalCost || 0}
-                                defaultActivationCost={firm.activationCost || 0}
-                                onAdd={(evalCost, profitTarget, createdDate) => addAccountWithCost(firm.id, evalCost, profitTarget, createdDate)}
-                                onStatusChange={(id, status, cost) => updateAccountStatus(firm.id, id, status, cost)}
-                                onBalanceChange={(id, balance) => updateAccountBalance(firm.id, id, balance)}
-                                onProfitTargetChange={(id, target) => updateAccountProfitTarget(firm.id, id, target)}
-                                onDelete={(id) => deleteAccount(firm.id, id)}
+                                limit={getAccountTypeLimit(type.id)}
+                                defaultEvalCost={type.evalCost || 0}
+                                defaultActivationCost={type.activationCost || 0}
+                                onAdd={(evalCost, profitTarget, createdDate) => addAccount(type.id, evalCost, profitTarget, createdDate)}
+                                onStatusChange={(id, status, cost) => updateAccountStatus(type.id, id, status, cost)}
+                                onBalanceChange={(id, balance) => updateAccountBalance(type.id, id, balance)}
+                                onProfitTargetChange={(id, target) => updateAccountProfitTarget(type.id, id, target)}
+                                onDelete={(id) => deleteAccount(type.id, id)}
                             />
                         );
                     })}
@@ -190,7 +212,7 @@ export default function Dashboard() {
     );
 }
 
-function GoalItem({ goal, firms, onToggle, onDelete }) {
+function GoalItem({ goal, accountTypes, firms, onToggle, onDelete }) {
     const getIcon = () => {
         switch (goal.actionType) {
             case 'fund_account': return '🎯';
@@ -209,8 +231,11 @@ function GoalItem({ goal, firms, onToggle, onDelete }) {
             };
             parts.push(actionLabels[goal.actionType]);
         }
-        if (goal.firmId && firms[goal.firmId]) {
-            parts.push(firms[goal.firmId].name);
+        if (goal.accountTypeId && accountTypes[goal.accountTypeId]) {
+            const type = accountTypes[goal.accountTypeId];
+            const firm = firms[type.firmId];
+            const firmPrefix = firm ? `${firm.name} - ` : '';
+            parts.push(`${firmPrefix}${type.name}`);
         }
         if (goal.endDate) {
             parts.push(`until ${goal.endDate}`);
@@ -238,10 +263,10 @@ function GoalItem({ goal, firms, onToggle, onDelete }) {
     );
 }
 
-function AccountCard({ firm, accounts, passed, limit, defaultEvalCost, defaultActivationCost, onAdd, onStatusChange, onBalanceChange, onProfitTargetChange, onDelete }) {
+function AccountCard({ accountType, firm, accounts, passed, limit, defaultEvalCost, defaultActivationCost, onAdd, onStatusChange, onBalanceChange, onProfitTargetChange, onDelete }) {
     const [showAddForm, setShowAddForm] = useState(false);
     const [evalCost, setEvalCost] = useState(defaultEvalCost);
-    const [profitTarget, setProfitTarget] = useState(firm.defaultProfitTarget);
+    const [profitTarget, setProfitTarget] = useState(accountType.defaultProfitTarget);
     const [createdDate, setCreatedDate] = useState(new Date().toISOString().split('T')[0]);
     const [statusChange, setStatusChange] = useState(null); // { id, newStatus }
     const [passCost, setPassCost] = useState(defaultActivationCost);
@@ -254,16 +279,16 @@ function AccountCard({ firm, accounts, passed, limit, defaultEvalCost, defaultAc
     const funded = accounts.filter(a => a.status === 'funded').length;
 
     const handleAdd = () => {
-        onAdd(evalCost || 0, profitTarget || firm.defaultProfitTarget, createdDate);
+        onAdd(evalCost || 0, profitTarget || accountType.defaultProfitTarget, createdDate);
         setShowAddForm(false);
         setEvalCost(defaultEvalCost);
-        setProfitTarget(firm.defaultProfitTarget);
+        setProfitTarget(accountType.defaultProfitTarget);
         setCreatedDate(new Date().toISOString().split('T')[0]);
     };
 
     const startEditTarget = (acc) => {
         setEditingTarget(acc.id);
-        setTargetInput(acc.profitTarget || firm.defaultProfitTarget);
+        setTargetInput(acc.profitTarget || accountType.defaultProfitTarget);
     };
 
     const saveTarget = (id) => {
@@ -300,14 +325,16 @@ function AccountCard({ firm, accounts, passed, limit, defaultEvalCost, defaultAc
         setBalanceInput('');
     };
 
+    const cardTitle = firm ? `${firm.name} ${accountType.name}` : accountType.name;
+
     return (
-        <div className={`account-card ${firm.id}`}>
-            <h3>{firm.accountName} Accounts</h3>
+        <div className={`account-card ${accountType.color || 'blue'}`}>
+            <h3>{cardTitle} Accounts</h3>
             <div className="account-count">
                 <span className="passed">{passed}</span>
                 <span className="limit">/{limit}</span> Passed
                 {funded > 0 && <span className="funded-count"> ({funded} funded)</span>}
-                {firm.hasConsistencyRule && halfway > 0 && (
+                {accountType.hasConsistencyRule && halfway > 0 && (
                     <span className="halfway-count"> ({halfway} at 50%)</span>
                 )}
             </div>
@@ -380,11 +407,11 @@ function AccountCard({ firm, accounts, passed, limit, defaultEvalCost, defaultAc
                                         onChange={(e) => handleStatusChange(acc.id, e.target.value)}
                                     >
                                         <option value="in-progress">In Progress</option>
-                                        {firm.hasConsistencyRule && (
+                                        {accountType.hasConsistencyRule && (
                                             <option value="halfway">50% Done</option>
                                         )}
                                         <option value="passed">Passed</option>
-                                        {firm.activationCost > 0 && (
+                                        {accountType.activationCost > 0 && (
                                             <option value="funded">Funded</option>
                                         )}
                                         <option value="failed">Failed</option>
@@ -441,7 +468,7 @@ function AccountCard({ firm, accounts, passed, limit, defaultEvalCost, defaultAc
                                 type="number"
                                 value={profitTarget}
                                 onChange={(e) => setProfitTarget(parseFloat(e.target.value) || 0)}
-                                placeholder={firm.defaultProfitTarget.toString()}
+                                placeholder={accountType.defaultProfitTarget.toString()}
                                 step="100"
                             />
                         </div>

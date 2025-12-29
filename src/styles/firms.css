@@ -411,3 +411,280 @@
         grid-template-columns: 1fr;
     }
 }
+
+/* Firms Hierarchy */
+.firms-hierarchy {
+    display: flex;
+    flex-direction: column;
+    gap: 24px;
+}
+
+.empty-firms {
+    background: var(--bg-card);
+    border: 2px dashed var(--border);
+    border-radius: 12px;
+    padding: 40px;
+    text-align: center;
+    color: var(--text-muted);
+}
+
+.firm-section {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    overflow: hidden;
+}
+
+.firm-section.orange { border-left: 4px solid var(--accent-orange); }
+.firm-section.purple { border-left: 4px solid var(--accent-purple); }
+.firm-section.blue { border-left: 4px solid var(--accent-blue); }
+.firm-section.green { border-left: 4px solid var(--accent-green); }
+.firm-section.red { border-left: 4px solid var(--accent-red); }
+.firm-section.teal { border-left: 4px solid #14b8a6; }
+
+.firm-header-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 16px 20px;
+    background: var(--bg-secondary);
+    border-bottom: 1px solid var(--border);
+}
+
+.firm-info {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.firm-info h3 {
+    font-size: 1.1rem;
+    font-weight: 600;
+    margin: 0;
+}
+
+.firm-link {
+    font-size: 0.75rem;
+    color: var(--accent-blue);
+    text-decoration: none;
+}
+
+.firm-link:hover {
+    text-decoration: underline;
+}
+
+.add-type-btn {
+    background: var(--accent-green-dim);
+    border: 1px solid var(--accent-green);
+    color: var(--accent-green);
+    padding: 6px 14px;
+    border-radius: 6px;
+    font-size: 0.8rem;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.add-type-btn:hover {
+    background: var(--accent-green);
+    color: var(--bg-primary);
+}
+
+.account-types-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+    gap: 16px;
+    padding: 20px;
+}
+
+.no-types {
+    color: var(--text-muted);
+    font-size: 0.9rem;
+    grid-column: 1 / -1;
+    text-align: center;
+    padding: 20px;
+}
+
+/* Account Type Card */
+.account-type-card {
+    background: var(--bg-secondary);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 16px;
+    transition: all 0.2s;
+}
+
+.account-type-card:hover {
+    border-color: var(--border-light);
+}
+
+.account-type-card.orange { border-top: 3px solid var(--accent-orange); }
+.account-type-card.purple { border-top: 3px solid var(--accent-purple); }
+.account-type-card.blue { border-top: 3px solid var(--accent-blue); }
+.account-type-card.green { border-top: 3px solid var(--accent-green); }
+.account-type-card.red { border-top: 3px solid var(--accent-red); }
+.account-type-card.teal { border-top: 3px solid #14b8a6; }
+
+.type-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 12px;
+}
+
+.type-header h4 {
+    font-size: 1rem;
+    font-weight: 600;
+    margin: 0;
+}
+
+.type-actions {
+    display: flex;
+    gap: 6px;
+}
+
+.type-actions .edit-btn {
+    background: transparent;
+    border: 1px solid var(--border);
+    color: var(--text-muted);
+    padding: 4px 10px;
+    border-radius: 5px;
+    font-size: 0.7rem;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.type-actions .edit-btn:hover {
+    background: var(--bg-card);
+    color: var(--text-primary);
+}
+
+.type-actions .delete-btn {
+    background: transparent;
+    border: 1px solid var(--border);
+    color: var(--text-muted);
+    width: 22px;
+    height: 22px;
+    border-radius: 5px;
+    font-size: 0.9rem;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s;
+}
+
+.type-actions .delete-btn:hover {
+    background: var(--accent-red-dim);
+    border-color: var(--accent-red);
+    color: var(--accent-red);
+}
+
+.type-details {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 8px;
+}
+
+.type-stat {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.type-stat .label {
+    font-size: 0.65rem;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.type-stat .value {
+    font-size: 0.85rem;
+    font-weight: 500;
+}
+
+.type-badge {
+    grid-column: 1 / -1;
+    margin-top: 8px;
+    padding: 4px 8px;
+    background: var(--accent-purple-dim);
+    color: var(--accent-purple);
+    font-size: 0.65rem;
+    border-radius: 4px;
+    text-align: center;
+}
+
+/* Delete Summary */
+.delete-summary {
+    list-style: disc;
+    margin-left: 20px;
+    margin-bottom: 12px;
+    color: var(--text-secondary);
+}
+
+.acc-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 6px 0;
+    border-bottom: 1px solid var(--border);
+}
+
+.acc-row:last-child {
+    border-bottom: none;
+}
+
+.more-accounts {
+    color: var(--text-muted);
+    font-size: 0.85rem;
+    margin-top: 8px;
+}
+
+/* Form field select */
+.firm-form .form-field select {
+    background: var(--bg-secondary);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 10px 12px;
+    color: var(--text-primary);
+    font-size: 0.9rem;
+    width: 100%;
+}
+
+.firm-form .form-field select:focus {
+    outline: none;
+    border-color: var(--accent-green);
+}
+
+.firm-form .form-field input[type="url"] {
+    background: var(--bg-secondary);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 10px 12px;
+    color: var(--text-primary);
+    font-size: 0.9rem;
+    width: 100%;
+}
+
+.firm-form .form-field input[type="url"]:focus {
+    outline: none;
+    border-color: var(--accent-green);
+}
+
+@media (max-width: 600px) {
+    .firm-header-row {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 12px;
+    }
+
+    .firm-actions {
+        width: 100%;
+        justify-content: flex-end;
+    }
+
+    .account-types-grid {
+        grid-template-columns: 1fr;
+    }
+}
