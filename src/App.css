@@ -477,6 +477,69 @@ section h2 {
     font-size: 0.85rem;
 }
 
+.funded-count {
+    color: var(--accent-green);
+    font-size: 0.85rem;
+}
+
+.account-cost {
+    color: var(--text-muted);
+    font-size: 0.75rem;
+    margin-left: 8px;
+}
+
+.account-item.funded span {
+    color: var(--accent-green);
+    font-weight: 600;
+}
+
+.cost-input-form {
+    background: var(--bg-secondary);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 12px;
+    margin-top: 12px;
+}
+
+.cost-input-form label {
+    display: block;
+    font-size: 0.8rem;
+    color: var(--text-secondary);
+    margin-bottom: 8px;
+}
+
+.cost-input-row {
+    display: flex;
+    gap: 8px;
+}
+
+.cost-input-row input {
+    flex: 1;
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    color: var(--text-primary);
+    padding: 8px 12px;
+    border-radius: 6px;
+    font-size: 0.9rem;
+}
+
+.cost-input-row button {
+    padding: 8px 16px;
+    border-radius: 6px;
+    font-size: 0.85rem;
+    cursor: pointer;
+    border: none;
+    background: var(--accent-green);
+    color: var(--bg-primary);
+    font-weight: 500;
+}
+
+.cost-input-row button.cancel-btn {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    color: var(--text-secondary);
+}
+
 .account-item select {
     background: var(--bg-secondary);
     border: 1px solid var(--border);

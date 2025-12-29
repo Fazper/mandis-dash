@@ -162,12 +162,12 @@ export function DashboardProvider({ children }) {
         saveState({ ...state, expenses: state.expenses.filter(e => e.id !== id) });
     };
 
-    const addAccount = (firmId) => {
+    const addAccountWithCost = (firmId, evalCost = 0) => {
         const firm = FIRMS[firmId];
         if (!firm) return;
 
         const accounts = state.accounts[firmId] || [];
-        const passedCount = accounts.filter(a => a.status === 'passed').length;
+        const passedCount = accounts.filter(a => a.status === 'passed' || a.status === 'funded').length;
 
         if (passedCount >= firm.maxFunded) {
             alert(`Max ${firm.maxFunded} ${firm.name} funded accounts reached!`);
@@ -180,12 +180,27 @@ export function DashboardProvider({ children }) {
             id: newId,
             name: `${firm.accountName} #${accountNum}`,
             status: 'in-progress',
+            evalCost: evalCost,
             passedDate: null,
+            fundedDate: null,
             createdDate: new Date().toISOString().split('T')[0]
         };
 
+        // Auto-add expense if eval cost provided
+        let newExpenses = state.expenses;
+        if (evalCost > 0) {
+            newExpenses = [...state.expenses, {
+                id: Date.now() + 1,
+                type: firmId,
+                amount: evalCost,
+                note: `${firm.accountName} #${accountNum}`,
+                date: new Date().toISOString().split('T')[0]
+            }];
+        }
+
         saveState({
             ...state,
+            expenses: newExpenses,
             accounts: {
                 ...state.accounts,
                 [firmId]: [...accounts, newAccount]
@@ -193,13 +208,44 @@ export function DashboardProvider({ children }) {
         });
     };
 
-    const updateAccountStatus = (firmId, id, status) => {
-        const accounts = (state.accounts[firmId] || []).map(acc =>
-            acc.id === id
-                ? { ...acc, status, passedDate: status === 'passed' ? new Date().toISOString().split('T')[0] : null }
-                : acc
-        );
-        saveState({ ...state, accounts: { ...state.accounts, [firmId]: accounts } });
+    const updateAccountStatus = (firmId, id, status, cost = 0) => {
+        const firm = FIRMS[firmId];
+        const today = new Date().toISOString().split('T')[0];
+
+        const accounts = (state.accounts[firmId] || []).map(acc => {
+            if (acc.id !== id) return acc;
+
+            const updates = { ...acc, status };
+
+            if (status === 'passed') {
+                updates.passedDate = today;
+            } else if (status === 'funded') {
+                updates.fundedDate = today;
+                if (!updates.passedDate) updates.passedDate = today;
+            }
+
+            return updates;
+        });
+
+        // Auto-add expense for activation/pass cost
+        let newExpenses = state.expenses;
+        if (cost > 0 && (status === 'passed' || status === 'funded')) {
+            const acc = state.accounts[firmId]?.find(a => a.id === id);
+            const expenseType = status === 'funded' ? `${firmId}-activation` : firmId;
+            newExpenses = [...state.expenses, {
+                id: Date.now(),
+                type: expenseType,
+                amount: cost,
+                note: `${acc?.name || firm.accountName} - ${status}`,
+                date: today
+            }];
+        }
+
+        saveState({
+            ...state,
+            expenses: newExpenses,
+            accounts: { ...state.accounts, [firmId]: accounts }
+        });
     };
 
     const deleteAccount = (firmId, id) => {
@@ -277,7 +323,7 @@ export function DashboardProvider({ children }) {
             updatePayoutStartDate,
             addExpense,
             deleteExpense,
-            addAccount,
+            addAccountWithCost,
             updateAccountStatus,
             deleteAccount,
             resetData,

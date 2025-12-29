@@ -1,7 +1,8 @@
+import { useState } from 'react';
 import { useDashboard } from '../context/DashboardContext';
 
 export default function Dashboard() {
-    const { state, FIRMS, addAccount, updateAccountStatus, deleteAccount, getFirmLimit } = useDashboard();
+    const { state, FIRMS, addAccountWithCost, updateAccountStatus, deleteAccount, getFirmLimit } = useDashboard();
 
     return (
         <div className="dashboard-tab">
@@ -46,8 +47,10 @@ export default function Dashboard() {
                                 accounts={accounts}
                                 passed={passed}
                                 limit={getFirmLimit(firm.id)}
-                                onAdd={() => addAccount(firm.id)}
-                                onStatusChange={(id, status) => updateAccountStatus(firm.id, id, status)}
+                                defaultEvalCost={state.costs[firm.evalCostKey] || 0}
+                                defaultActivationCost={firm.activationCostKey ? state.costs[firm.activationCostKey] || 0 : 0}
+                                onAdd={(evalCost) => addAccountWithCost(firm.id, evalCost)}
+                                onStatusChange={(id, status, cost) => updateAccountStatus(firm.id, id, status, cost)}
                                 onDelete={(id) => deleteAccount(firm.id, id)}
                             />
                         );
@@ -102,8 +105,38 @@ function TaskItem({ icon, title, subtitle, priority }) {
     );
 }
 
-function AccountCard({ firm, accounts, passed, limit, onAdd, onStatusChange, onDelete }) {
+function AccountCard({ firm, accounts, passed, limit, defaultEvalCost, defaultActivationCost, onAdd, onStatusChange, onDelete }) {
+    const [showAddForm, setShowAddForm] = useState(false);
+    const [evalCost, setEvalCost] = useState(defaultEvalCost);
+    const [statusChange, setStatusChange] = useState(null); // { id, newStatus }
+    const [passCost, setPassCost] = useState(defaultActivationCost);
+
     const halfway = accounts.filter(a => a.status === 'halfway').length;
+    const funded = accounts.filter(a => a.status === 'funded').length;
+
+    const handleAdd = () => {
+        onAdd(evalCost || 0);
+        setShowAddForm(false);
+        setEvalCost(defaultEvalCost);
+    };
+
+    const handleStatusChange = (id, newStatus) => {
+        // If changing to passed or funded, show cost input
+        if (newStatus === 'passed' || newStatus === 'funded') {
+            setStatusChange({ id, newStatus });
+            setPassCost(defaultActivationCost);
+        } else {
+            onStatusChange(id, newStatus, 0);
+        }
+    };
+
+    const confirmStatusChange = () => {
+        if (statusChange) {
+            onStatusChange(statusChange.id, statusChange.newStatus, passCost || 0);
+            setStatusChange(null);
+            setPassCost(defaultActivationCost);
+        }
+    };
 
     return (
         <div className={`account-card ${firm.id}`}>
@@ -111,6 +144,7 @@ function AccountCard({ firm, accounts, passed, limit, onAdd, onStatusChange, onD
             <div className="account-count">
                 <span className="passed">{passed}</span>
                 <span className="limit">/{limit}</span> Passed
+                {funded > 0 && <span className="funded-count"> ({funded} funded)</span>}
                 {firm.hasConsistencyRule && halfway > 0 && (
                     <span className="halfway-count"> ({halfway} at 50%)</span>
                 )}
@@ -122,16 +156,20 @@ function AccountCard({ firm, accounts, passed, limit, onAdd, onStatusChange, onD
                     accounts.map(acc => (
                         <div key={acc.id} className={`account-item ${acc.status}`}>
                             <span>{acc.name}</span>
+                            {acc.evalCost > 0 && <small className="account-cost">${acc.evalCost}</small>}
                             <div className="account-actions">
                                 <select
                                     value={acc.status}
-                                    onChange={(e) => onStatusChange(acc.id, e.target.value)}
+                                    onChange={(e) => handleStatusChange(acc.id, e.target.value)}
                                 >
                                     <option value="in-progress">In Progress</option>
                                     {firm.hasConsistencyRule && (
                                         <option value="halfway">50% Done</option>
                                     )}
                                     <option value="passed">Passed</option>
+                                    {firm.activationCostKey && (
+                                        <option value="funded">Funded</option>
+                                    )}
                                     <option value="failed">Failed</option>
                                 </select>
                                 <button
@@ -146,7 +184,44 @@ function AccountCard({ firm, accounts, passed, limit, onAdd, onStatusChange, onD
                     ))
                 )}
             </div>
-            <button onClick={onAdd} disabled={passed >= limit}>+ Add Account</button>
+
+            {/* Status change cost modal */}
+            {statusChange && (
+                <div className="cost-input-form">
+                    <label>{statusChange.newStatus === 'funded' ? 'Activation' : 'Pass'} Cost ($)</label>
+                    <div className="cost-input-row">
+                        <input
+                            type="number"
+                            value={passCost}
+                            onChange={(e) => setPassCost(parseFloat(e.target.value) || 0)}
+                            placeholder="0"
+                            step="0.01"
+                        />
+                        <button onClick={confirmStatusChange}>Confirm</button>
+                        <button className="cancel-btn" onClick={() => setStatusChange(null)}>Cancel</button>
+                    </div>
+                </div>
+            )}
+
+            {/* Add account form */}
+            {showAddForm ? (
+                <div className="cost-input-form">
+                    <label>Eval Cost ($)</label>
+                    <div className="cost-input-row">
+                        <input
+                            type="number"
+                            value={evalCost}
+                            onChange={(e) => setEvalCost(parseFloat(e.target.value) || 0)}
+                            placeholder={defaultEvalCost.toString()}
+                            step="0.01"
+                        />
+                        <button onClick={handleAdd}>Add</button>
+                        <button className="cancel-btn" onClick={() => setShowAddForm(false)}>Cancel</button>
+                    </div>
+                </div>
+            ) : (
+                <button onClick={() => setShowAddForm(true)} disabled={passed >= limit}>+ Add Account</button>
+            )}
         </div>
     );
 }

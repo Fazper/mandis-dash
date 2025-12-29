@@ -68,6 +68,12 @@ export default function Stats() {
                             <div key={firm.id} className={`breakdown-card ${firm.id}`}>
                                 <h4>{firm.name} Accounts</h4>
                                 <div className="breakdown-stats">
+                                    {firm.activationCostKey && (
+                                        <div className="breakdown-item">
+                                            <span className="label">Funded</span>
+                                            <span className="value">{accounts.filter(a => a.status === 'funded').length}</span>
+                                        </div>
+                                    )}
                                     <div className="breakdown-item">
                                         <span className="label">Passed</span>
                                         <span className="value">{accounts.filter(a => a.status === 'passed').length}</span>
