@@ -40,10 +40,11 @@ export default function Stats() {
     const totalPassed = getTotalPassed();
     const potentialPayouts = calculatePotentialPayout();
 
-    // Calculate pass rate from expenses (count eval purchases)
-    const evalExpenses = (expenses || []).filter(e => accountTypes[e.type]);
-    const totalEvals = evalExpenses.length;
-    const passRateCalc = totalEvals > 0 ? ((totalPassed / totalEvals) * 100).toFixed(0) : 0;
+    // Calculate pass rate from actual accounts
+    const allAccounts = Object.values(accounts).flat();
+    const totalAccountsCount = allAccounts.length;
+    const passedAndFundedCount = allAccounts.filter(a => a.status === 'passed' || a.status === 'funded').length;
+    const passRateCalc = totalAccountsCount > 0 ? ((passedAndFundedCount / totalAccountsCount) * 100).toFixed(0) : 0;
 
     // Prepare chart data
     const chartData = useMemo(() => {
@@ -80,18 +81,19 @@ export default function Stats() {
         // Expenses by firm
         const expensesByFirm = {};
         (expenses || []).forEach(exp => {
-            const type = accountTypes[exp.type];
-            if (type) {
-                const firm = firms[type.firmId];
-                if (firm) {
-                    expensesByFirm[firm.name] = (expensesByFirm[firm.name] || 0) + exp.amount;
+            // Check if expense type directly matches an account type
+            let matchedType = accountTypes[exp.type];
+
+            // If not, check for activation expense pattern
+            if (!matchedType) {
+                const activationMatch = exp.type.match(/^(.+)-activation$/);
+                if (activationMatch) {
+                    matchedType = accountTypes[activationMatch[1]];
                 }
             }
-            // Handle activation expenses
-            const activationMatch = exp.type.match(/^(.+)-activation$/);
-            if (activationMatch && accountTypes[activationMatch[1]]) {
-                const type = accountTypes[activationMatch[1]];
-                const firm = firms[type.firmId];
+
+            if (matchedType) {
+                const firm = firms[matchedType.firmId];
                 if (firm) {
                     expensesByFirm[firm.name] = (expensesByFirm[firm.name] || 0) + exp.amount;
                 }
