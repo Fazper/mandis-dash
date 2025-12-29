@@ -100,7 +100,11 @@ export default function AccountCard({
                     <p className="no-accounts">No accounts yet. Click below to add one.</p>
                 ) : (
                     accounts.map(acc => {
-                        const progress = acc.profitTarget > 0 ? Math.min((acc.balance / acc.profitTarget) * 100, 100) : 0;
+                        const balance = acc.balance || 0;
+                        const isNegative = balance < 0;
+                        const progress = acc.profitTarget > 0
+                            ? Math.min(Math.max((balance / acc.profitTarget) * 100, 0), 100)
+                            : 0;
                         const isActive = acc.status === 'in-progress' || acc.status === 'halfway';
 
                         return (
@@ -139,10 +143,14 @@ export default function AccountCard({
                                                 </div>
                                             ) : (
                                                 <div className="progress-display">
-                                                    <div className="progress-bar" onClick={() => startEditBalance(acc)}>
+                                                    <div className={`progress-bar ${isNegative ? 'negative' : ''}`} onClick={() => startEditBalance(acc)}>
                                                         <div
                                                             className="progress-fill"
-                                                            style={{ width: `${progress}%` }}
+                                                            style={{
+                                                                width: isNegative
+                                                                    ? `${Math.min(Math.abs(balance / acc.profitTarget) * 100, 100)}%`
+                                                                    : `${progress}%`
+                                                            }}
                                                         />
                                                     </div>
                                                     <div className="progress-labels">

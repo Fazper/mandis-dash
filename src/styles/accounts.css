@@ -215,6 +215,14 @@
     transition: width 0.3s ease;
 }
 
+.progress-bar.negative {
+    direction: rtl;
+}
+
+.progress-bar.negative .progress-fill {
+    background: var(--accent-red);
+}
+
 .progress-labels {
     display: flex;
     gap: 2px;
