@@ -4,12 +4,52 @@
     top: 0;
     left: 0;
     height: 100vh;
-    background: var(--bg-card);
+    background: linear-gradient(
+        180deg,
+        rgba(20, 20, 25, 0.98) 0%,
+        rgba(15, 15, 20, 0.98) 50%,
+        rgba(10, 12, 18, 0.98) 100%
+    );
     border-right: 1px solid var(--border);
     display: flex;
     flex-direction: column;
     z-index: 100;
     transition: width var(--transition-normal);
+    overflow: hidden;
+}
+
+/* Subtle gradient glow effect */
+.sidebar::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 200px;
+    background: radial-gradient(
+        ellipse 80% 50% at 50% -20%,
+        rgba(0, 255, 136, 0.08) 0%,
+        transparent 70%
+    );
+    pointer-events: none;
+    z-index: 0;
+}
+
+/* Bottom accent glow */
+.sidebar::after {
+    content: '';
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    height: 150px;
+    background: radial-gradient(
+        ellipse 80% 60% at 50% 120%,
+        rgba(0, 136, 255, 0.06) 0%,
+        transparent 70%
+    );
+    pointer-events: none;
+    z-index: 0;
 }
 
 .sidebar.expanded {
@@ -22,12 +62,19 @@
 
 /* Sidebar Header */
 .sidebar-header {
+    position: relative;
+    z-index: 1;
     display: flex;
     align-items: center;
     justify-content: space-between;
     padding: 20px 16px;
-    border-bottom: 1px solid var(--border);
+    border-bottom: 1px solid rgba(255, 255, 255, 0.06);
     min-height: 80px;
+    background: linear-gradient(
+        180deg,
+        rgba(255, 255, 255, 0.02) 0%,
+        transparent 100%
+    );
 }
 
 .sidebar-brand {
@@ -40,6 +87,7 @@
 .brand-icon {
     font-size: 1.75rem;
     flex-shrink: 0;
+    filter: drop-shadow(0 0 8px rgba(0, 255, 136, 0.4));
 }
 
 .brand-text {
@@ -52,6 +100,10 @@
     font-weight: 700;
     color: var(--text-primary);
     margin: 0;
+    background: linear-gradient(135deg, #ffffff 0%, #a0a0a0 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
 }
 
 .brand-text p {
@@ -63,9 +115,9 @@
 .sidebar-toggle {
     width: 28px;
     height: 28px;
-    background: var(--bg-secondary);
-    border: 1px solid var(--border);
-    border-radius: 6px;
+    background: rgba(255, 255, 255, 0.04);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 8px;
     color: var(--text-secondary);
     cursor: pointer;
     display: flex;
@@ -73,12 +125,25 @@
     justify-content: center;
     flex-shrink: 0;
     transition: all var(--transition-fast);
+    outline: none;
 }
 
 .sidebar-toggle:hover {
-    background: var(--bg-card-hover);
+    background: rgba(255, 255, 255, 0.08);
     color: var(--text-primary);
-    border-color: var(--border-light);
+    border-color: rgba(255, 255, 255, 0.15);
+    transform: scale(1.05);
+}
+
+.sidebar-toggle:focus {
+    outline: none;
+    border-color: rgba(255, 255, 255, 0.2);
+}
+
+.sidebar-toggle:focus-visible {
+    outline: none;
+    border-color: rgba(0, 255, 136, 0.4);
+    box-shadow: 0 0 0 2px rgba(0, 255, 136, 0.1);
 }
 
 .toggle-icon {
@@ -93,6 +158,8 @@
 
 /* Sidebar Navigation */
 .sidebar-nav {
+    position: relative;
+    z-index: 1;
     flex: 1;
     display: flex;
     flex-direction: column;
@@ -106,7 +173,7 @@
     align-items: center;
     gap: 12px;
     padding: 12px 14px;
-    border-radius: 8px;
+    border-radius: 10px;
     color: var(--text-secondary);
     text-decoration: none;
     font-size: 0.9rem;
@@ -114,20 +181,46 @@
     transition: all var(--transition-fast);
     white-space: nowrap;
     overflow: hidden;
+    border: 1px solid transparent;
+    position: relative;
 }
 
 .sidebar-link:hover {
-    background: var(--bg-secondary);
+    background: rgba(255, 255, 255, 0.04);
     color: var(--text-primary);
+    border-color: rgba(255, 255, 255, 0.06);
 }
 
 .sidebar-link.active {
-    background: var(--accent-green-dim);
+    background: linear-gradient(
+        135deg,
+        rgba(0, 255, 136, 0.12) 0%,
+        rgba(0, 255, 136, 0.06) 100%
+    );
     color: var(--accent-green);
+    border-color: rgba(0, 255, 136, 0.2);
+    box-shadow: 0 0 20px rgba(0, 255, 136, 0.1);
+}
+
+.sidebar-link.active::before {
+    content: '';
+    position: absolute;
+    left: 0;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 3px;
+    height: 60%;
+    background: var(--accent-green);
+    border-radius: 0 2px 2px 0;
+    box-shadow: 0 0 8px var(--accent-green);
 }
 
 .sidebar-link.active:hover {
-    background: var(--accent-green-dim);
+    background: linear-gradient(
+        135deg,
+        rgba(0, 255, 136, 0.15) 0%,
+        rgba(0, 255, 136, 0.08) 100%
+    );
 }
 
 .nav-icon {
@@ -153,21 +246,35 @@
 
 /* Sidebar Footer */
 .sidebar-footer {
+    position: relative;
+    z-index: 1;
     padding: 16px;
-    border-top: 1px solid var(--border);
+    border-top: 1px solid rgba(255, 255, 255, 0.06);
     display: flex;
     flex-direction: column;
     gap: 12px;
+    background: linear-gradient(
+        0deg,
+        rgba(255, 255, 255, 0.02) 0%,
+        transparent 100%
+    );
 }
 
 .user-info {
     display: flex;
     align-items: center;
     gap: 10px;
-    padding: 8px 12px;
-    background: var(--bg-secondary);
-    border-radius: 8px;
+    padding: 10px 12px;
+    background: rgba(255, 255, 255, 0.03);
+    border: 1px solid rgba(255, 255, 255, 0.05);
+    border-radius: 10px;
     overflow: hidden;
+    transition: all var(--transition-fast);
+}
+
+.user-info:hover {
+    background: rgba(255, 255, 255, 0.05);
+    border-color: rgba(255, 255, 255, 0.08);
 }
 
 .user-avatar {
@@ -186,9 +293,9 @@
 .sidebar-footer .sign-out-btn {
     width: 100%;
     padding: 10px 16px;
-    background: transparent;
-    border: 1px solid var(--border);
-    border-radius: 8px;
+    background: rgba(255, 255, 255, 0.03);
+    border: 1px solid rgba(255, 255, 255, 0.06);
+    border-radius: 10px;
     color: var(--text-secondary);
     font-size: 0.85rem;
     font-weight: 500;
@@ -197,9 +304,14 @@
 }
 
 .sidebar-footer .sign-out-btn:hover {
-    background: var(--accent-red-dim);
-    border-color: var(--accent-red);
+    background: linear-gradient(
+        135deg,
+        rgba(255, 59, 59, 0.15) 0%,
+        rgba(255, 59, 59, 0.08) 100%
+    );
+    border-color: rgba(255, 59, 59, 0.3);
     color: var(--accent-red);
+    box-shadow: 0 0 15px rgba(255, 59, 59, 0.1);
 }
 
 .sidebar-footer .sign-out-btn.icon-only {
