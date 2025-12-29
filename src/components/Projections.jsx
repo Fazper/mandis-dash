@@ -25,11 +25,10 @@ function getMarketDaysCount(start, end) {
 }
 
 export default function Projections() {
-    const { state, firms, calculateMoneyStats } = useDashboard();
+    const { state, firms, accountTypes, accounts, calculateMoneyStats } = useDashboard();
     const [month, setMonth] = useState(1);
     const [year, setYear] = useState(2026);
     const [passRate, setPassRate] = useState(50);
-    const [payoutPerAccount, setPayoutPerAccount] = useState(500);
 
     const monthNames = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
 
@@ -50,34 +49,57 @@ export default function Projections() {
         const daysInMonth = lastDay.getDate();
         const payoutsEnabled = canReceivePayouts(year, month);
 
-        // Initialize cumulative counts from current state - dynamic for all firms
+        // Initialize from current state
         const currentStats = calculateMoneyStats();
         let cumulativeExpenses = currentStats.totalSpent;
         const rate = passRate / 100;
 
-        // Track passed counts per firm dynamically
-        const cumulativePassed = {};
-        Object.values(firms).forEach(firm => {
-            const firmAccounts = state.accounts[firm.id] || [];
-            cumulativePassed[firm.id] = firmAccounts.filter(a => a.status === 'passed' || a.status === 'funded').length;
+        // Track passed/funded accounts per account type
+        const passedAccounts = {};
+
+        // Initialize from actual current accounts
+        Object.values(accountTypes).forEach(type => {
+            const typeAccounts = accounts[type.id] || [];
+            passedAccounts[type.id] = typeAccounts.filter(a => a.status === 'passed' || a.status === 'funded').length;
         });
 
+        // Helper to get firm's total passed accounts
+        const getFirmPassedTotal = (firmId) => {
+            return Object.values(accountTypes)
+                .filter(t => t.firmId === firmId)
+                .reduce((sum, t) => sum + passedAccounts[t.id], 0);
+        };
+
         // Simulate a single day of trading
+        // Model: Each day, for each account type, if firm has room:
+        // - Buy 1 eval (pay eval cost)
+        // - That eval has passRate% chance to pass (we track fractionally for smooth projection)
+        // - When it passes, pay activation cost
         const simulateDay = () => {
-            Object.values(firms).forEach(firm => {
-                const canBuy = Math.floor(cumulativePassed[firm.id]) < firm.maxFunded;
-                if (canBuy) {
-                    // Add eval cost
-                    cumulativeExpenses += firm.evalCost || 0;
+            Object.values(accountTypes).forEach(type => {
+                const firm = firms[type.firmId];
+                if (!firm) return;
 
-                    // Apply pass rate - accounts with consistency rule take 2x longer (50% checkpoint)
-                    const effectiveRate = firm.hasConsistencyRule ? rate / 2 : rate;
-                    cumulativePassed[firm.id] = Math.min(cumulativePassed[firm.id] + effectiveRate, firm.maxFunded);
+                const firmPassedTotal = getFirmPassedTotal(type.firmId);
+                const roomInFirm = firm.maxFunded - firmPassedTotal;
 
-                    // Add activation cost if firm has it (scaled by pass rate)
-                    if (firm.activationCost > 0) {
-                        cumulativeExpenses += effectiveRate * (firm.activationCost || 0);
-                    }
+                if (roomInFirm <= 0) return; // Firm is at max capacity
+
+                // Buy 1 eval for this account type (cost = eval cost)
+                cumulativeExpenses += type.evalCost || 0;
+
+                // Calculate how much this account progresses toward passing
+                // Accounts with consistency rule take 2x longer (must hit 50% checkpoint first)
+                const effectiveRate = type.hasConsistencyRule ? rate / 2 : rate;
+
+                // The eval passes with probability = effectiveRate
+                // We model this as fractional accounts for smooth projections
+                const passIncrement = Math.min(effectiveRate, roomInFirm);
+                passedAccounts[type.id] += passIncrement;
+
+                // When accounts pass/fund, pay activation cost (proportional to pass increment)
+                if (type.activationCost > 0) {
+                    cumulativeExpenses += passIncrement * type.activationCost;
                 }
             });
         };
@@ -107,11 +129,16 @@ export default function Projections() {
                 simulateDay();
             }
 
-            // Sum all firm accounts
-            const totalAccounts = Object.keys(cumulativePassed).reduce((sum, firmId) => {
-                return sum + Math.floor(cumulativePassed[firmId]);
+            // Sum all passed accounts and calculate payout using expected payouts
+            const totalAccounts = Object.keys(passedAccounts).reduce((sum, typeId) => {
+                return sum + Math.floor(passedAccounts[typeId]);
             }, 0);
-            const totalPayout = payoutsEnabled ? totalAccounts * payoutPerAccount : 0;
+            // Calculate payout using each account type's expected payout
+            const totalPayout = payoutsEnabled ? Object.keys(passedAccounts).reduce((sum, typeId) => {
+                const type = accountTypes[typeId];
+                const passedCount = Math.floor(passedAccounts[typeId]);
+                return sum + (passedCount * (type?.expectedPayout || 2000));
+            }, 0) : 0;
 
             days.push({
                 day,
@@ -126,10 +153,15 @@ export default function Projections() {
             });
         }
 
-        const finalTotalAccounts = Object.keys(cumulativePassed).reduce((sum, firmId) => {
-            return sum + Math.floor(cumulativePassed[firmId]);
+        const finalTotalAccounts = Object.keys(passedAccounts).reduce((sum, typeId) => {
+            return sum + Math.floor(passedAccounts[typeId]);
         }, 0);
-        const finalPayout = payoutsEnabled ? finalTotalAccounts * payoutPerAccount : 0;
+        // Final payout uses each account type's expected payout
+        const finalPayout = payoutsEnabled ? Object.keys(passedAccounts).reduce((sum, typeId) => {
+            const type = accountTypes[typeId];
+            const passedCount = Math.floor(passedAccounts[typeId]);
+            return sum + (passedCount * (type?.expectedPayout || 2000));
+        }, 0) : 0;
         const netProfit = finalPayout - cumulativeExpenses;
 
         return {
@@ -142,7 +174,7 @@ export default function Projections() {
                 payoutsEnabled
             }
         };
-    }, [month, year, passRate, payoutPerAccount, state, firms]);
+    }, [month, year, passRate, state, firms, accountTypes, accounts]);
 
     const [payoutYear, payoutMonth] = state.payoutStartDate.split('-').map(Number);
     const payoutStartLabel = `${monthNames[payoutMonth - 1]} ${payoutYear}`;
@@ -176,15 +208,6 @@ export default function Projections() {
                                 onChange={(e) => setPassRate(parseInt(e.target.value) || 0)}
                                 min="0"
                                 max="100"
-                            />
-                        </div>
-                        <div className="sim-input-group">
-                            <label>Payout/Account ($)</label>
-                            <input
-                                type="number"
-                                value={payoutPerAccount}
-                                onChange={(e) => setPayoutPerAccount(parseInt(e.target.value) || 0)}
-                                step="100"
                             />
                         </div>
                     </div>

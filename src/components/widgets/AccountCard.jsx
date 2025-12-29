@@ -19,7 +19,7 @@ export default function AccountCard({
     const [profitTarget, setProfitTarget] = useState(accountType.defaultProfitTarget);
     const [createdDate, setCreatedDate] = useState(new Date().toISOString().split('T')[0]);
     const [statusChange, setStatusChange] = useState(null);
-    const [passCost, setPassCost] = useState(defaultActivationCost);
+    const [activationCost, setActivationCost] = useState(defaultActivationCost);
     const [editingBalance, setEditingBalance] = useState(null);
     const [balanceInput, setBalanceInput] = useState('');
     const [editingTarget, setEditingTarget] = useState(null);
@@ -49,9 +49,10 @@ export default function AccountCard({
     };
 
     const handleStatusChange = (id, newStatus) => {
-        if (newStatus === 'passed' || newStatus === 'funded') {
+        if (newStatus === 'funded') {
+            // Only funded accounts have an activation cost
             setStatusChange({ id, newStatus });
-            setPassCost(defaultActivationCost);
+            setActivationCost(defaultActivationCost);
         } else {
             onStatusChange(id, newStatus, 0);
         }
@@ -59,9 +60,9 @@ export default function AccountCard({
 
     const confirmStatusChange = () => {
         if (statusChange) {
-            onStatusChange(statusChange.id, statusChange.newStatus, passCost || 0);
+            onStatusChange(statusChange.id, statusChange.newStatus, activationCost || 0);
             setStatusChange(null);
-            setPassCost(defaultActivationCost);
+            setActivationCost(defaultActivationCost);
         }
     };
 
@@ -188,12 +189,12 @@ export default function AccountCard({
 
             {statusChange && (
                 <div className="cost-input-form">
-                    <label>{statusChange.newStatus === 'funded' ? 'Activation' : 'Pass'} Cost ($)</label>
+                    <label>Activation Cost ($)</label>
                     <div className="cost-input-row">
                         <input
                             type="number"
-                            value={passCost}
-                            onChange={(e) => setPassCost(parseFloat(e.target.value) || 0)}
+                            value={activationCost}
+                            onChange={(e) => setActivationCost(parseFloat(e.target.value) || 0)}
                             placeholder="0"
                             step="0.01"
                         />
