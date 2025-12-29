@@ -11,12 +11,22 @@ const navItems = [
 ];
 
 export default function Sidebar({ onExpandChange }) {
-    const { user, signOut } = useAuth();
+    const { user, profile, signOut } = useAuth();
     const expanded = true; // Always expanded
 
     useEffect(() => {
         onExpandChange?.(expanded);
     }, [expanded, onExpandChange]);
+
+    const getInitials = () => {
+        if (profile?.display_name) {
+            return profile.display_name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2);
+        }
+        if (user?.email) {
+            return user.email[0].toUpperCase();
+        }
+        return '?';
+    };
 
     return (
         <aside className={`sidebar ${expanded ? 'expanded' : 'collapsed'}`}>
@@ -41,10 +51,17 @@ export default function Sidebar({ onExpandChange }) {
             </nav>
 
             <div className="sidebar-footer">
-                <div className="user-info">
-                    <span className="user-avatar">👤</span>
-                    <span className="user-email">{user?.email}</span>
-                </div>
+                <NavLink
+                    to="/profile"
+                    className={({ isActive }) => `user-info ${isActive ? 'active' : ''}`}
+                >
+                    {profile?.avatar_url ? (
+                        <img src={profile.avatar_url} alt="Avatar" className="user-avatar-img" />
+                    ) : (
+                        <span className="user-avatar-initials">{getInitials()}</span>
+                    )}
+                    <span className="user-email">{profile?.display_name || user?.email}</span>
+                </NavLink>
                 <button className="sign-out-btn" onClick={signOut}>
                     Sign Out
                 </button>

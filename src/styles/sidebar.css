@@ -204,6 +204,8 @@
     border-radius: 10px;
     overflow: hidden;
     transition: all var(--transition-fast);
+    text-decoration: none;
+    cursor: pointer;
 }
 
 .user-info:hover {
@@ -211,8 +213,34 @@
     border-color: rgba(255, 255, 255, 0.08);
 }
 
-.user-avatar {
-    font-size: 1.25rem;
+.user-info.active {
+    background: linear-gradient(
+        135deg,
+        rgba(0, 255, 136, 0.1) 0%,
+        rgba(0, 255, 136, 0.05) 100%
+    );
+    border-color: rgba(0, 255, 136, 0.2);
+}
+
+.user-avatar-img {
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    object-fit: cover;
+    flex-shrink: 0;
+}
+
+.user-avatar-initials {
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, rgba(0, 255, 136, 0.2) 0%, rgba(0, 255, 136, 0.1) 100%);
+    color: var(--accent-green);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.75rem;
+    font-weight: 700;
     flex-shrink: 0;
 }
 
@@ -222,6 +250,10 @@
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
+}
+
+.user-info.active .user-email {
+    color: var(--accent-green);
 }
 
 .sidebar-footer .sign-out-btn {
