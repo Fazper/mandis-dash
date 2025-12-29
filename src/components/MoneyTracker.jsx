@@ -18,7 +18,7 @@ export default function MoneyTracker() {
         deleteExpense,
         resetData,
         calculateMoneyStats,
-        getTotalPassed
+        calculatePotentialPayout
     } = useDashboard();
 
     const [expenseType, setExpenseType] = useState(Object.keys(accountTypes)[0] || 'other');
@@ -35,8 +35,7 @@ export default function MoneyTracker() {
     const [deleteTypeConfirm, setDeleteTypeConfirm] = useState(null);
 
     const stats = calculateMoneyStats();
-    const totalPassed = getTotalPassed();
-    const potentialPayout = totalPassed * (state.settings?.payoutEstimate || 2000);
+    const potentialPayout = calculatePotentialPayout();
     const roi = stats.totalSpent > 0 ? ((potentialPayout / stats.totalSpent) * 100).toFixed(0) : 0;
 
     const handleAddExpense = () => {
@@ -95,15 +94,6 @@ export default function MoneyTracker() {
                 <h2>Settings</h2>
                 <div className="settings-card">
                     <div className="settings-grid">
-                        <div className="setting-item">
-                            <label>Est. Payout per Account ($)</label>
-                            <input
-                                type="number"
-                                value={state.settings?.payoutEstimate || 2000}
-                                onChange={(e) => updateSetting('payoutEstimate', parseFloat(e.target.value) || 0)}
-                                step="100"
-                            />
-                        </div>
                         <div className="setting-item">
                             <label>Payout Start Date</label>
                             <input
@@ -329,6 +319,10 @@ function AccountTypeCard({ type, onEdit, onDelete }) {
                     <span className="label">Profit Target</span>
                     <span className="value">${type.defaultProfitTarget}</span>
                 </div>
+                <div className="type-stat">
+                    <span className="label">Expected Payout</span>
+                    <span className="value">${type.expectedPayout || 2000}</span>
+                </div>
                 {type.hasConsistencyRule && (
                     <div className="type-badge">50% Consistency Rule</div>
                 )}
@@ -438,8 +432,15 @@ function AccountTypeForm({ type, firmId, firmColor, firms, onSave, onCancel }) {
         activationCost: type?.activationCost || 0,
         color: type?.color || firmColor || 'blue',
         hasConsistencyRule: type?.hasConsistencyRule || false,
-        defaultProfitTarget: type?.defaultProfitTarget || 3000
+        defaultProfitTarget: type?.defaultProfitTarget || 3000,
+        expectedPayout: type?.expectedPayout || 2000
     });
+    const [templates, setTemplates] = useState(() => {
+        const saved = localStorage.getItem('accountTypeTemplates');
+        return saved ? JSON.parse(saved) : [];
+    });
+    const [templateName, setTemplateName] = useState('');
+    const [showSaveTemplate, setShowSaveTemplate] = useState(false);
 
     const colors = ['orange', 'purple', 'blue', 'green', 'red', 'teal'];
 
@@ -450,14 +451,68 @@ function AccountTypeForm({ type, firmId, firmColor, firms, onSave, onCancel }) {
             ...formData,
             evalCost: parseFloat(formData.evalCost) || 0,
             activationCost: parseFloat(formData.activationCost) || 0,
-            defaultProfitTarget: parseFloat(formData.defaultProfitTarget) || 3000
+            defaultProfitTarget: parseFloat(formData.defaultProfitTarget) || 3000,
+            expectedPayout: parseFloat(formData.expectedPayout) || 2000
         });
+    };
+
+    const saveTemplate = () => {
+        if (!templateName.trim()) return;
+        const template = {
+            name: templateName.trim(),
+            evalCost: formData.evalCost,
+            activationCost: formData.activationCost,
+            defaultProfitTarget: formData.defaultProfitTarget,
+            expectedPayout: formData.expectedPayout,
+            hasConsistencyRule: formData.hasConsistencyRule,
+            color: formData.color
+        };
+        const newTemplates = [...templates.filter(t => t.name !== template.name), template];
+        setTemplates(newTemplates);
+        localStorage.setItem('accountTypeTemplates', JSON.stringify(newTemplates));
+        setTemplateName('');
+        setShowSaveTemplate(false);
+    };
+
+    const loadTemplate = (template) => {
+        setFormData(prev => ({
+            ...prev,
+            evalCost: template.evalCost,
+            activationCost: template.activationCost,
+            defaultProfitTarget: template.defaultProfitTarget,
+            expectedPayout: template.expectedPayout,
+            hasConsistencyRule: template.hasConsistencyRule,
+            color: template.color
+        }));
+    };
+
+    const deleteTemplate = (templateName) => {
+        const newTemplates = templates.filter(t => t.name !== templateName);
+        setTemplates(newTemplates);
+        localStorage.setItem('accountTypeTemplates', JSON.stringify(newTemplates));
     };
 
     return (
         <div className="firm-form-overlay">
             <form className="firm-form" onSubmit={handleSubmit}>
                 <h3>{type ? 'Edit Account Type' : 'Add Account Type'}</h3>
+
+                {/* Templates Section */}
+                {templates.length > 0 && (
+                    <div className="templates-section">
+                        <label>Load from Template:</label>
+                        <div className="template-chips">
+                            {templates.map(t => (
+                                <div key={t.name} className="template-chip">
+                                    <button type="button" onClick={() => loadTemplate(t)}>
+                                        {t.name}
+                                    </button>
+                                    <button type="button" className="delete-template" onClick={() => deleteTemplate(t.name)}>×</button>
+                                </div>
+                            ))}
+                        </div>
+                    </div>
+                )}
 
                 {type && firms && (
                     <div className="form-row">
@@ -520,6 +575,19 @@ function AccountTypeForm({ type, firmId, firmColor, firms, onSave, onCancel }) {
 
                 <div className="form-row">
                     <div className="form-field">
+                        <label>Expected Payout ($)</label>
+                        <input
+                            type="number"
+                            value={formData.expectedPayout}
+                            onChange={(e) => setFormData({ ...formData, expectedPayout: e.target.value })}
+                            step="100"
+                            placeholder="2000"
+                        />
+                    </div>
+                </div>
+
+                <div className="form-row">
+                    <div className="form-field">
                         <label>Color</label>
                         <div className="color-picker">
                             {colors.map(c => (
@@ -543,6 +611,25 @@ function AccountTypeForm({ type, firmId, firmColor, firms, onSave, onCancel }) {
                         </label>
                     </div>
                 </div>
+
+                {/* Save as Template */}
+                {showSaveTemplate ? (
+                    <div className="save-template-row">
+                        <input
+                            type="text"
+                            value={templateName}
+                            onChange={(e) => setTemplateName(e.target.value)}
+                            placeholder="Template name (e.g., Apex 50K)"
+                            autoFocus
+                        />
+                        <button type="button" onClick={saveTemplate}>Save</button>
+                        <button type="button" className="cancel-btn" onClick={() => setShowSaveTemplate(false)}>×</button>
+                    </div>
+                ) : (
+                    <button type="button" className="save-template-btn" onClick={() => setShowSaveTemplate(true)}>
+                        Save as Template
+                    </button>
+                )}
 
                 <div className="form-actions">
                     <button type="button" className="cancel-btn" onClick={onCancel}>Cancel</button>

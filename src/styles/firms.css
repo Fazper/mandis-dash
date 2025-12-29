@@ -688,3 +688,133 @@
         grid-template-columns: 1fr;
     }
 }
+
+/* Templates Section */
+.templates-section {
+    margin-bottom: 16px;
+    padding: 12px;
+    background: var(--bg-secondary);
+    border-radius: 8px;
+}
+
+.templates-section label {
+    display: block;
+    font-size: 0.8rem;
+    color: var(--text-secondary);
+    margin-bottom: 8px;
+}
+
+.template-chips {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+}
+
+.template-chip {
+    display: flex;
+    align-items: center;
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    overflow: hidden;
+}
+
+.template-chip button:first-child {
+    padding: 6px 12px;
+    background: transparent;
+    border: none;
+    color: var(--text-primary);
+    font-size: 0.85rem;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.template-chip button:first-child:hover {
+    background: var(--accent-green-dim);
+    color: var(--accent-green);
+}
+
+.template-chip .delete-template {
+    padding: 6px 8px;
+    background: transparent;
+    border: none;
+    border-left: 1px solid var(--border);
+    color: var(--text-muted);
+    font-size: 0.9rem;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.template-chip .delete-template:hover {
+    background: var(--accent-red-dim);
+    color: var(--accent-red);
+}
+
+/* Save Template Button */
+.save-template-btn {
+    width: 100%;
+    padding: 10px;
+    background: var(--bg-secondary);
+    border: 1px dashed var(--border);
+    color: var(--text-muted);
+    border-radius: 8px;
+    font-size: 0.85rem;
+    cursor: pointer;
+    transition: all 0.2s;
+    margin-bottom: 16px;
+}
+
+.save-template-btn:hover {
+    border-color: var(--accent-blue);
+    color: var(--accent-blue);
+    background: rgba(96, 165, 250, 0.1);
+}
+
+/* Save Template Row */
+.save-template-row {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 16px;
+}
+
+.save-template-row input {
+    flex: 1;
+    background: var(--bg-secondary);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 10px 12px;
+    color: var(--text-primary);
+    font-size: 0.9rem;
+}
+
+.save-template-row input:focus {
+    outline: none;
+    border-color: var(--accent-green);
+}
+
+.save-template-row button {
+    padding: 10px 16px;
+    border-radius: 8px;
+    font-size: 0.85rem;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.save-template-row button:first-of-type {
+    background: var(--accent-green);
+    border: none;
+    color: var(--bg-primary);
+    font-weight: 600;
+}
+
+.save-template-row button:first-of-type:hover {
+    opacity: 0.9;
+}
+
+.save-template-row .cancel-btn {
+    background: var(--bg-secondary);
+    border: 1px solid var(--border);
+    color: var(--text-muted);
+    width: 40px;
+    padding: 0;
+}

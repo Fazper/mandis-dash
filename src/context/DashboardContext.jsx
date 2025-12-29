@@ -223,7 +223,8 @@ export function DashboardProvider({ children }) {
                     activationCost: parseFloat(type.activation_cost) || 0,
                     color: type.color || 'blue',
                     hasConsistencyRule: type.has_consistency_rule || false,
-                    defaultProfitTarget: parseFloat(type.default_profit_target) || 3000
+                    defaultProfitTarget: parseFloat(type.default_profit_target) || 3000,
+                    expectedPayout: parseFloat(type.expected_payout) || 2000
                 };
             });
         }
@@ -245,7 +246,8 @@ export function DashboardProvider({ children }) {
                 activation_cost: typeData.activationCost || 0,
                 color: typeData.color || firms[typeData.firmId]?.color || 'blue',
                 has_consistency_rule: typeData.hasConsistencyRule || false,
-                default_profit_target: typeData.defaultProfitTarget || 3000
+                default_profit_target: typeData.defaultProfitTarget || 3000,
+                expected_payout: typeData.expectedPayout || 2000
             })
             .select()
             .single();
@@ -268,7 +270,8 @@ export function DashboardProvider({ children }) {
             activationCost: parseFloat(newType.activation_cost) || 0,
             color: newType.color,
             hasConsistencyRule: newType.has_consistency_rule,
-            defaultProfitTarget: parseFloat(newType.default_profit_target) || 3000
+            defaultProfitTarget: parseFloat(newType.default_profit_target) || 3000,
+            expectedPayout: parseFloat(newType.expected_payout) || 2000
         };
 
         setAccountTypes(prev => ({ ...prev, [accountType.id]: accountType }));
@@ -286,6 +289,7 @@ export function DashboardProvider({ children }) {
         if (updates.color !== undefined) dbUpdates.color = updates.color;
         if (updates.hasConsistencyRule !== undefined) dbUpdates.has_consistency_rule = updates.hasConsistencyRule;
         if (updates.defaultProfitTarget !== undefined) dbUpdates.default_profit_target = updates.defaultProfitTarget;
+        if (updates.expectedPayout !== undefined) dbUpdates.expected_payout = updates.expectedPayout;
 
         const { error } = await supabase
             .from('account_types')
@@ -954,6 +958,16 @@ export function DashboardProvider({ children }) {
         }, 0);
     };
 
+    // Calculate potential payout using per-account-type expected payouts
+    const calculatePotentialPayout = () => {
+        return Object.keys(accountTypes).reduce((total, typeId) => {
+            const type = accountTypes[typeId];
+            const typeAccounts = accounts[typeId] || [];
+            const passedCount = typeAccounts.filter(a => a.status === 'passed' || a.status === 'funded').length;
+            return total + (passedCount * (type.expectedPayout || 2000));
+        }, 0);
+    };
+
     // Get firm's max funded limit
     const getFirmLimit = (firmId) => {
         return firms[firmId]?.maxFunded || 0;
@@ -1019,6 +1033,7 @@ export function DashboardProvider({ children }) {
             resetData,
             calculateMoneyStats,
             getTotalPassed,
+            calculatePotentialPayout,
             getFirmLimit,
             getFirmFundedCount
         }}>
