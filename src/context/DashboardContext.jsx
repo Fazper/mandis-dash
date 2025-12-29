@@ -1021,6 +1021,7 @@ export function DashboardProvider({ children }) {
             // Settings
             updateSetting,
             // Expenses
+            expenses,
             addExpense,
             deleteExpense,
             // Goals
