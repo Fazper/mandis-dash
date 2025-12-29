@@ -430,8 +430,9 @@ export function DashboardProvider({ children }) {
         }
 
         // Add expense if eval cost provided
+        let expenseAdded = false;
         if (evalCost > 0) {
-            await addExpense(accountTypeId, evalCost, accountName, dateToUse);
+            expenseAdded = await addExpense(accountTypeId, evalCost, accountName, dateToUse, true);
         }
 
         // Auto-complete goals
@@ -453,6 +454,14 @@ export function DashboardProvider({ children }) {
                 createdDate: dateToUse
             }]
         }));
+
+        if (evalCost > 0 && expenseAdded) {
+            toast.success(`Added ${accountName} + $${evalCost} expense`);
+        } else if (evalCost > 0 && !expenseAdded) {
+            toast.warning(`Added ${accountName} but expense failed to record`);
+        } else {
+            toast.success(`Added account: ${accountName}`);
+        }
     };
 
     const updateAccountStatus = async (accountTypeId, accountId, status, cost = 0) => {
@@ -613,7 +622,7 @@ export function DashboardProvider({ children }) {
         }
     };
 
-    const addExpense = async (type, amount, note = '', date = null) => {
+    const addExpense = async (type, amount, note = '', date = null, silent = false) => {
         const dateToUse = date || new Date().toISOString().split('T')[0];
 
         const { data: newExpense, error } = await supabase
@@ -630,8 +639,10 @@ export function DashboardProvider({ children }) {
 
         if (error) {
             console.error('Add expense error:', error);
-            toast.error(`Failed to add expense: ${error.message}`);
-            return;
+            if (!silent) {
+                toast.error(`Failed to add expense: ${error.message}`);
+            }
+            return false;
         }
 
         setExpenses(prev => {
@@ -644,7 +655,11 @@ export function DashboardProvider({ children }) {
             };
             return [...prev, newExp].sort((a, b) => b.date.localeCompare(a.date));
         });
-        toast.success(`Added expense: $${parseFloat(amount).toFixed(2)}`);
+
+        if (!silent) {
+            toast.success(`Added expense: $${parseFloat(amount).toFixed(2)}`);
+        }
+        return true;
     };
 
     const deleteExpense = async (expenseId) => {
