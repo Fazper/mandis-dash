@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { useDashboard } from '../context/DashboardContext';
 
 export default function Dashboard() {
-    const { state, FIRMS, addAccountWithCost, updateAccountStatus, deleteAccount, getFirmLimit } = useDashboard();
+    const { state, FIRMS, addAccountWithCost, updateAccountStatus, updateAccountBalance, deleteAccount, getFirmLimit } = useDashboard();
 
     return (
         <div className="dashboard-tab">
@@ -51,6 +51,7 @@ export default function Dashboard() {
                                 defaultActivationCost={firm.activationCostKey ? state.costs[firm.activationCostKey] || 0 : 0}
                                 onAdd={(evalCost) => addAccountWithCost(firm.id, evalCost)}
                                 onStatusChange={(id, status, cost) => updateAccountStatus(firm.id, id, status, cost)}
+                                onBalanceChange={(id, balance) => updateAccountBalance(firm.id, id, balance)}
                                 onDelete={(id) => deleteAccount(firm.id, id)}
                             />
                         );
@@ -105,11 +106,13 @@ function TaskItem({ icon, title, subtitle, priority }) {
     );
 }
 
-function AccountCard({ firm, accounts, passed, limit, defaultEvalCost, defaultActivationCost, onAdd, onStatusChange, onDelete }) {
+function AccountCard({ firm, accounts, passed, limit, defaultEvalCost, defaultActivationCost, onAdd, onStatusChange, onBalanceChange, onDelete }) {
     const [showAddForm, setShowAddForm] = useState(false);
     const [evalCost, setEvalCost] = useState(defaultEvalCost);
     const [statusChange, setStatusChange] = useState(null); // { id, newStatus }
     const [passCost, setPassCost] = useState(defaultActivationCost);
+    const [editingBalance, setEditingBalance] = useState(null); // account id being edited
+    const [balanceInput, setBalanceInput] = useState('');
 
     const halfway = accounts.filter(a => a.status === 'halfway').length;
     const funded = accounts.filter(a => a.status === 'funded').length;
@@ -121,7 +124,6 @@ function AccountCard({ firm, accounts, passed, limit, defaultEvalCost, defaultAc
     };
 
     const handleStatusChange = (id, newStatus) => {
-        // If changing to passed or funded, show cost input
         if (newStatus === 'passed' || newStatus === 'funded') {
             setStatusChange({ id, newStatus });
             setPassCost(defaultActivationCost);
@@ -136,6 +138,17 @@ function AccountCard({ firm, accounts, passed, limit, defaultEvalCost, defaultAc
             setStatusChange(null);
             setPassCost(defaultActivationCost);
         }
+    };
+
+    const startEditBalance = (acc) => {
+        setEditingBalance(acc.id);
+        setBalanceInput(acc.balance || 0);
+    };
+
+    const saveBalance = (id) => {
+        onBalanceChange(id, balanceInput);
+        setEditingBalance(null);
+        setBalanceInput('');
     };
 
     return (
@@ -153,35 +166,72 @@ function AccountCard({ firm, accounts, passed, limit, defaultEvalCost, defaultAc
                 {accounts.length === 0 ? (
                     <p className="no-accounts">No accounts yet. Click below to add one.</p>
                 ) : (
-                    accounts.map(acc => (
-                        <div key={acc.id} className={`account-item ${acc.status}`}>
-                            <span>{acc.name}</span>
-                            {acc.evalCost > 0 && <small className="account-cost">${acc.evalCost}</small>}
-                            <div className="account-actions">
-                                <select
-                                    value={acc.status}
-                                    onChange={(e) => handleStatusChange(acc.id, e.target.value)}
-                                >
-                                    <option value="in-progress">In Progress</option>
-                                    {firm.hasConsistencyRule && (
-                                        <option value="halfway">50% Done</option>
+                    accounts.map(acc => {
+                        const progress = acc.profitTarget > 0 ? Math.min((acc.balance / acc.profitTarget) * 100, 100) : 0;
+                        const isActive = acc.status === 'in-progress' || acc.status === 'halfway';
+
+                        return (
+                            <div key={acc.id} className={`account-item ${acc.status}`}>
+                                <div className="account-info">
+                                    <span className="account-name">{acc.name}</span>
+                                    {acc.evalCost > 0 && <small className="account-cost">${acc.evalCost}</small>}
+                                    {isActive && (
+                                        <div className="account-progress">
+                                            {editingBalance === acc.id ? (
+                                                <div className="balance-edit">
+                                                    <input
+                                                        type="number"
+                                                        value={balanceInput}
+                                                        onChange={(e) => setBalanceInput(e.target.value)}
+                                                        placeholder="Balance"
+                                                        step="0.01"
+                                                        autoFocus
+                                                    />
+                                                    <button onClick={() => saveBalance(acc.id)}>Save</button>
+                                                    <button className="cancel-btn" onClick={() => setEditingBalance(null)}>×</button>
+                                                </div>
+                                            ) : (
+                                                <div className="progress-display" onClick={() => startEditBalance(acc)}>
+                                                    <div className="progress-bar">
+                                                        <div
+                                                            className="progress-fill"
+                                                            style={{ width: `${progress}%` }}
+                                                        />
+                                                    </div>
+                                                    <span className="progress-text">
+                                                        ${acc.balance || 0} / ${acc.profitTarget || 0}
+                                                    </span>
+                                                </div>
+                                            )}
+                                        </div>
                                     )}
-                                    <option value="passed">Passed</option>
-                                    {firm.activationCostKey && (
-                                        <option value="funded">Funded</option>
-                                    )}
-                                    <option value="failed">Failed</option>
-                                </select>
-                                <button
-                                    className="delete-account-btn"
-                                    onClick={() => onDelete(acc.id)}
-                                    title="Delete account"
-                                >
-                                    ×
-                                </button>
+                                </div>
+                                <div className="account-actions">
+                                    <select
+                                        value={acc.status}
+                                        onChange={(e) => handleStatusChange(acc.id, e.target.value)}
+                                    >
+                                        <option value="in-progress">In Progress</option>
+                                        {firm.hasConsistencyRule && (
+                                            <option value="halfway">50% Done</option>
+                                        )}
+                                        <option value="passed">Passed</option>
+                                        {firm.activationCostKey && (
+                                            <option value="funded">Funded</option>
+                                        )}
+                                        <option value="failed">Failed</option>
+                                    </select>
+                                    <button
+                                        className="delete-account-btn"
+                                        onClick={() => onDelete(acc.id)}
+                                        title="Delete account"
+                                    >
+                                        ×
+                                    </button>
+                                </div>
                             </div>
-                        </div>
-                    ))
+                        );
+                    })
                 )}
             </div>
 

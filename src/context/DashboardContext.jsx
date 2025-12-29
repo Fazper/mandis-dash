@@ -16,7 +16,9 @@ const FIRMS = {
         evalCostKey: 'apexEval',
         activationCostKey: 'apexActivation',
         color: 'orange',
-        hasConsistencyRule: false
+        hasConsistencyRule: false,
+        defaultProfitTarget: 3000,
+        defaultBalance: 0
     },
     lucid: {
         id: 'lucid',
@@ -26,7 +28,9 @@ const FIRMS = {
         evalCostKey: 'lucidEval',
         activationCostKey: null,
         color: 'purple',
-        hasConsistencyRule: true // 50% consistency rule
+        hasConsistencyRule: true,
+        defaultProfitTarget: 2500,
+        defaultBalance: 0
     }
 };
 
@@ -162,7 +166,7 @@ export function DashboardProvider({ children }) {
         saveState({ ...state, expenses: state.expenses.filter(e => e.id !== id) });
     };
 
-    const addAccountWithCost = (firmId, evalCost = 0) => {
+    const addAccountWithCost = (firmId, evalCost = 0, profitTarget = null) => {
         const firm = FIRMS[firmId];
         if (!firm) return;
 
@@ -181,6 +185,8 @@ export function DashboardProvider({ children }) {
             name: `${firm.accountName} #${accountNum}`,
             status: 'in-progress',
             evalCost: evalCost,
+            profitTarget: profitTarget || firm.defaultProfitTarget,
+            balance: 0,
             passedDate: null,
             fundedDate: null,
             createdDate: new Date().toISOString().split('T')[0]
@@ -206,6 +212,20 @@ export function DashboardProvider({ children }) {
                 [firmId]: [...accounts, newAccount]
             }
         });
+    };
+
+    const updateAccountBalance = (firmId, id, balance) => {
+        const accounts = (state.accounts[firmId] || []).map(acc =>
+            acc.id === id ? { ...acc, balance: parseFloat(balance) || 0 } : acc
+        );
+        saveState({ ...state, accounts: { ...state.accounts, [firmId]: accounts } });
+    };
+
+    const updateAccountProfitTarget = (firmId, id, profitTarget) => {
+        const accounts = (state.accounts[firmId] || []).map(acc =>
+            acc.id === id ? { ...acc, profitTarget: parseFloat(profitTarget) || 0 } : acc
+        );
+        saveState({ ...state, accounts: { ...state.accounts, [firmId]: accounts } });
     };
 
     const updateAccountStatus = (firmId, id, status, cost = 0) => {
@@ -325,6 +345,8 @@ export function DashboardProvider({ children }) {
             deleteExpense,
             addAccountWithCost,
             updateAccountStatus,
+            updateAccountBalance,
+            updateAccountProfitTarget,
             deleteAccount,
             resetData,
             calculateMoneyStats,
