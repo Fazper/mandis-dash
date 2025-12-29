@@ -6,7 +6,8 @@ const navItems = [
     { path: '/dashboard', label: 'Dashboard', icon: '📊' },
     { path: '/money', label: 'Money', icon: '💰' },
     { path: '/projections', label: 'Projections', icon: '📈' },
-    { path: '/stats', label: 'Stats & Log', icon: '📋' }
+    { path: '/stats', label: 'Stats & Log', icon: '📋' },
+    { path: '/settings', label: 'Settings', icon: '⚙️' }
 ];
 
 export default function Sidebar({ onExpandChange }) {

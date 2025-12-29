@@ -70,7 +70,8 @@ section h2 {
 .dashboard-tab,
 .money-tab,
 .projections-tab,
-.stats-tab {
+.stats-tab,
+.settings-tab {
     width: 100%;
     max-width: 100%;
     overflow-x: hidden;

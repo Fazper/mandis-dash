@@ -11,6 +11,7 @@ import Dashboard from './components/Dashboard';
 import MoneyTracker from './components/MoneyTracker';
 import Projections from './components/Projections';
 import Stats from './components/Stats';
+import Settings from './components/Settings';
 import './App.css';
 
 function AppContent() {
@@ -61,6 +62,7 @@ function AnimatedRoutes() {
                 <Route path="/money" element={<MoneyTracker />} />
                 <Route path="/projections" element={<Projections />} />
                 <Route path="/stats" element={<Stats />} />
+                <Route path="/settings" element={<Settings />} />
                 <Route path="*" element={<Navigate to="/dashboard" replace />} />
             </Routes>
         </PageTransition>
