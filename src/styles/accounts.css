@@ -12,13 +12,27 @@
 .account-card {
     background: var(--bg-card);
     border: 1px solid var(--border);
-    border-radius: 12px;
+    border-radius: 16px;
     padding: 24px;
-    transition: all 0.2s ease;
+    transition: all 0.25s ease;
+    position: relative;
+    overflow: hidden;
+}
+
+.account-card::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 3px;
+    opacity: 0.8;
 }
 
 .account-card:hover {
     border-color: var(--border-light);
+    transform: translateY(-2px);
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.15);
 }
 
 .account-card.apex,
@@ -40,9 +54,13 @@
 }
 
 .account-count {
-    font-size: 2.5rem;
+    font-size: 2.75rem;
     font-weight: 700;
-    margin-bottom: 16px;
+    margin-bottom: 8px;
+    display: flex;
+    align-items: baseline;
+    gap: 4px;
+    line-height: 1;
 }
 
 .account-count .passed {
@@ -50,9 +68,47 @@
 }
 
 .account-count .limit {
-    font-size: 1.25rem;
+    font-size: 1.5rem;
     color: var(--text-muted);
     font-weight: 500;
+}
+
+.account-count .count-label {
+    font-size: 1rem;
+    font-weight: 500;
+    margin-left: 8px;
+}
+
+/* Account Stats Pills */
+.account-stats {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+    margin-bottom: 20px;
+}
+
+.account-stats span {
+    padding: 4px 10px;
+    border-radius: 20px;
+    font-size: 0.75rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.3px;
+}
+
+.funded-count {
+    background: rgba(34, 197, 94, 0.15);
+    color: var(--accent-green) !important;
+}
+
+.passed-count {
+    background: rgba(34, 197, 94, 0.1);
+    color: var(--accent-green) !important;
+}
+
+.halfway-count {
+    background: rgba(251, 146, 60, 0.15);
+    color: var(--accent-orange) !important;
 }
 
 .apex .account-count,
@@ -74,36 +130,41 @@
     display: flex;
     justify-content: space-between;
     align-items: center;
-    padding: 10px 0;
+    padding: 14px 16px;
+    margin: 0 -16px;
     border-bottom: 1px solid var(--border);
     font-size: 0.9rem;
+    transition: background-color 0.15s ease;
+    border-radius: 8px;
+}
+
+.account-item:hover {
+    background: var(--bg-secondary);
 }
 
 .account-item:last-child {
     border-bottom: none;
 }
 
-.account-item.passed span {
+.account-item.passed .account-name,
+.account-item.funded .account-name {
     color: var(--accent-green);
 }
 
-.account-item.halfway span {
+.account-item.halfway .account-name {
     color: var(--accent-orange);
 }
 
-.account-item.failed span {
+.account-item.failed .account-name {
     color: var(--accent-red);
+    text-decoration: line-through;
+    opacity: 0.7;
 }
 
-.halfway-count {
-    color: var(--accent-orange);
-    font-size: 0.85rem;
+.account-item.in-progress .account-name {
+    color: var(--accent-blue);
 }
 
-.funded-count {
-    color: var(--accent-green);
-    font-size: 0.85rem;
-}
 
 .account-cost {
     color: var(--text-muted);
@@ -210,13 +271,74 @@
     padding: 4px 6px;
 }
 
+/* Status Dropdown - Beautiful Select */
 .account-item select {
+    appearance: none;
+    -webkit-appearance: none;
+    -moz-appearance: none;
     background: var(--bg-secondary);
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%236b7280' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 10px center;
     border: 1px solid var(--border);
     color: var(--text-primary);
-    padding: 6px 10px;
-    border-radius: 6px;
+    padding: 8px 32px 8px 12px;
+    border-radius: 8px;
     font-size: 0.8rem;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    min-width: 110px;
+}
+
+.account-item select:hover {
+    border-color: var(--border-light);
+    background-color: var(--bg-card-hover);
+}
+
+.account-item select:focus {
+    outline: none;
+    border-color: var(--accent-blue);
+    box-shadow: 0 0 0 3px var(--accent-blue-dim);
+}
+
+/* Status-specific dropdown colors */
+.account-item.passed select,
+.account-item.funded select {
+    border-color: var(--accent-green);
+    background-color: rgba(34, 197, 94, 0.1);
+}
+
+.account-item.passed select:hover,
+.account-item.funded select:hover {
+    background-color: rgba(34, 197, 94, 0.15);
+}
+
+.account-item.halfway select {
+    border-color: var(--accent-orange);
+    background-color: rgba(251, 146, 60, 0.1);
+}
+
+.account-item.halfway select:hover {
+    background-color: rgba(251, 146, 60, 0.15);
+}
+
+.account-item.failed select {
+    border-color: var(--accent-red);
+    background-color: rgba(239, 68, 68, 0.1);
+}
+
+.account-item.failed select:hover {
+    background-color: rgba(239, 68, 68, 0.15);
+}
+
+.account-item.in-progress select {
+    border-color: var(--accent-blue);
+    background-color: rgba(59, 130, 246, 0.1);
+}
+
+.account-item.in-progress select:hover {
+    background-color: rgba(59, 130, 246, 0.15);
 }
 
 .account-actions {
@@ -226,23 +348,30 @@
 }
 
 .delete-account-btn {
-    background: var(--accent-red-dim);
-    border: none;
-    color: var(--accent-red);
-    width: 24px;
-    height: 24px;
-    border-radius: 4px;
+    background: transparent;
+    border: 1px solid transparent;
+    color: var(--text-muted);
+    width: 28px;
+    height: 28px;
+    border-radius: 6px;
     cursor: pointer;
-    font-size: 1rem;
+    font-size: 1.1rem;
     display: flex;
     align-items: center;
     justify-content: center;
-    transition: all 0.2s;
+    transition: all 0.2s ease;
+    opacity: 0.5;
+}
+
+.account-item:hover .delete-account-btn {
+    opacity: 1;
 }
 
 .delete-account-btn:hover {
-    background: var(--accent-red);
-    color: var(--text-primary);
+    background: var(--accent-red-dim);
+    border-color: var(--accent-red);
+    color: var(--accent-red);
+    transform: scale(1.1);
 }
 
 .no-accounts {
@@ -251,27 +380,36 @@
     padding: 12px 0;
 }
 
-.account-card button {
-    background: transparent;
-    border: 1px solid var(--border);
+/* Add Account Button */
+.account-card > button {
+    background: linear-gradient(135deg, var(--bg-secondary) 0%, var(--bg-card-hover) 100%);
+    border: 1px dashed var(--border-light);
     color: var(--text-secondary);
-    padding: 10px 20px;
-    border-radius: 8px;
+    padding: 14px 20px;
+    border-radius: 10px;
     cursor: pointer;
-    font-size: 0.875rem;
-    transition: all 0.2s;
+    font-size: 0.9rem;
+    font-weight: 500;
+    transition: all 0.25s ease;
     width: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
 }
 
-.account-card button:hover:not(:disabled) {
-    background: var(--bg-card-hover);
-    border-color: var(--border-light);
+.account-card > button:hover:not(:disabled) {
+    background: linear-gradient(135deg, var(--bg-card-hover) 0%, var(--border) 100%);
+    border-color: var(--accent-blue);
+    border-style: solid;
     color: var(--text-primary);
+    transform: translateY(-1px);
 }
 
-.account-card button:disabled {
-    opacity: 0.5;
+.account-card > button:disabled {
+    opacity: 0.4;
     cursor: not-allowed;
+    background: var(--bg-secondary);
 }
 
 /* Cost Input Form */
