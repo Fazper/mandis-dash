@@ -1,34 +1,50 @@
-/* Settings */
+/* Settings Page Layout */
+.settings-tab {
+    display: grid;
+    grid-template-columns: 320px 1fr;
+    gap: 24px;
+    align-items: start;
+}
+
+@media (max-width: 900px) {
+    .settings-tab {
+        grid-template-columns: 1fr;
+    }
+}
+
+/* General Settings - Compact Sidebar */
+.settings {
+    position: sticky;
+    top: 24px;
+}
+
+.settings h2 {
+    font-size: 1rem;
+    margin-bottom: 12px;
+}
+
 .settings-card {
     background: var(--bg-card);
     border: 1px solid var(--border);
     border-radius: 12px;
-    padding: 24px;
+    padding: 20px;
 }
 
 .settings-grid {
-    display: grid;
-    grid-template-columns: repeat(4, 1fr);
+    display: flex;
+    flex-direction: column;
     gap: 16px;
-}
-
-@media (max-width: 900px) {
-    .settings-grid { grid-template-columns: repeat(2, 1fr); }
-}
-
-@media (max-width: 500px) {
-    .settings-grid { grid-template-columns: 1fr; }
 }
 
 .setting-item {
     display: flex;
     flex-direction: column;
-    gap: 8px;
+    gap: 6px;
 }
 
 .setting-item label {
     color: var(--text-muted);
-    font-size: 0.8rem;
+    font-size: 0.75rem;
     text-transform: uppercase;
     letter-spacing: 0.5px;
 }
@@ -37,9 +53,10 @@
     background: var(--bg-secondary);
     border: 1px solid var(--border);
     color: var(--text-primary);
-    padding: 12px 16px;
+    padding: 10px 14px;
     border-radius: 8px;
-    font-size: 1rem;
+    font-size: 0.9rem;
+    width: 100%;
 }
 
 .setting-item input:focus {
@@ -48,8 +65,8 @@
 }
 
 .settings-actions {
-    margin-top: 20px;
-    padding-top: 20px;
+    margin-top: 16px;
+    padding-top: 16px;
     border-top: 1px solid var(--border);
 }
 
@@ -57,12 +74,13 @@
     background: var(--accent-red-dim);
     border: 1px solid var(--accent-red);
     color: var(--accent-red);
-    padding: 12px 24px;
+    padding: 10px 20px;
     border-radius: 8px;
     cursor: pointer;
     font-weight: 600;
-    font-size: 0.9rem;
+    font-size: 0.85rem;
     transition: all 0.2s;
+    width: 100%;
 }
 
 .reset-btn:hover {
@@ -74,9 +92,9 @@
     background: var(--text-primary);
     border: none;
     color: var(--bg-primary);
-    padding: 14px 32px;
+    padding: 12px 28px;
     border-radius: 8px;
-    font-size: 1rem;
+    font-size: 0.9rem;
     font-weight: 600;
     cursor: pointer;
     transition: all 0.2s;

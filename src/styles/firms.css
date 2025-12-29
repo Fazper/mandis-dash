@@ -1,12 +1,37 @@
 /* Firms Configuration */
 .firms-config {
-    margin-bottom: 32px;
+    margin-bottom: 0;
 }
 
-.firms-config h2 {
-    font-size: 1.25rem;
-    font-weight: 600;
+.firms-config .section-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
     margin-bottom: 16px;
+}
+
+.firms-config .section-header h2 {
+    font-size: 1rem;
+    font-weight: 600;
+    margin: 0;
+}
+
+.firms-config .section-header .add-goal-btn {
+    background: var(--bg-secondary);
+    border: 1px solid var(--border);
+    color: var(--text-secondary);
+    padding: 8px 16px;
+    border-radius: 8px;
+    font-size: 0.85rem;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.firms-config .section-header .add-goal-btn:hover {
+    background: var(--bg-card-hover);
+    border-color: var(--accent-green);
+    color: var(--accent-green);
 }
 
 .firms-grid {
@@ -416,14 +441,14 @@
 .firms-hierarchy {
     display: flex;
     flex-direction: column;
-    gap: 24px;
+    gap: 16px;
 }
 
 .empty-firms {
     background: var(--bg-card);
     border: 2px dashed var(--border);
     border-radius: 12px;
-    padding: 40px;
+    padding: 32px;
     text-align: center;
     color: var(--text-muted);
 }
@@ -435,18 +460,18 @@
     overflow: hidden;
 }
 
-.firm-section.orange { border-left: 4px solid var(--accent-orange); }
-.firm-section.purple { border-left: 4px solid var(--accent-purple); }
-.firm-section.blue { border-left: 4px solid var(--accent-blue); }
-.firm-section.green { border-left: 4px solid var(--accent-green); }
-.firm-section.red { border-left: 4px solid var(--accent-red); }
-.firm-section.teal { border-left: 4px solid #14b8a6; }
+.firm-section.orange { border-left: 3px solid var(--accent-orange); }
+.firm-section.purple { border-left: 3px solid var(--accent-purple); }
+.firm-section.blue { border-left: 3px solid var(--accent-blue); }
+.firm-section.green { border-left: 3px solid var(--accent-green); }
+.firm-section.red { border-left: 3px solid var(--accent-red); }
+.firm-section.teal { border-left: 3px solid #14b8a6; }
 
 .firm-header-row {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    padding: 16px 20px;
+    padding: 12px 16px;
     background: var(--bg-secondary);
     border-bottom: 1px solid var(--border);
 }
@@ -454,17 +479,17 @@
 .firm-info {
     display: flex;
     align-items: center;
-    gap: 12px;
+    gap: 10px;
 }
 
 .firm-info h3 {
-    font-size: 1.1rem;
+    font-size: 1rem;
     font-weight: 600;
     margin: 0;
 }
 
 .firm-link {
-    font-size: 0.75rem;
+    font-size: 0.7rem;
     color: var(--accent-blue);
     text-decoration: none;
 }
@@ -477,9 +502,9 @@
     background: var(--accent-green-dim);
     border: 1px solid var(--accent-green);
     color: var(--accent-green);
-    padding: 6px 14px;
+    padding: 5px 12px;
     border-radius: 6px;
-    font-size: 0.8rem;
+    font-size: 0.75rem;
     font-weight: 500;
     cursor: pointer;
     transition: all 0.2s;
@@ -491,65 +516,68 @@
 }
 
 .account-types-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
-    gap: 16px;
-    padding: 20px;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px;
+    padding: 16px;
 }
 
 .no-types {
     color: var(--text-muted);
-    font-size: 0.9rem;
-    grid-column: 1 / -1;
+    font-size: 0.85rem;
+    width: 100%;
     text-align: center;
-    padding: 20px;
+    padding: 16px;
 }
 
-/* Account Type Card */
+/* Account Type Card - Compact */
 .account-type-card {
     background: var(--bg-secondary);
     border: 1px solid var(--border);
     border-radius: 10px;
-    padding: 16px;
+    padding: 12px 14px;
     transition: all 0.2s;
+    min-width: 180px;
+    max-width: 220px;
+    flex: 1 1 180px;
 }
 
 .account-type-card:hover {
     border-color: var(--border-light);
 }
 
-.account-type-card.orange { border-top: 3px solid var(--accent-orange); }
-.account-type-card.purple { border-top: 3px solid var(--accent-purple); }
-.account-type-card.blue { border-top: 3px solid var(--accent-blue); }
-.account-type-card.green { border-top: 3px solid var(--accent-green); }
-.account-type-card.red { border-top: 3px solid var(--accent-red); }
-.account-type-card.teal { border-top: 3px solid #14b8a6; }
+.account-type-card.orange { border-top: 2px solid var(--accent-orange); }
+.account-type-card.purple { border-top: 2px solid var(--accent-purple); }
+.account-type-card.blue { border-top: 2px solid var(--accent-blue); }
+.account-type-card.green { border-top: 2px solid var(--accent-green); }
+.account-type-card.red { border-top: 2px solid var(--accent-red); }
+.account-type-card.teal { border-top: 2px solid #14b8a6; }
 
 .type-header {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    margin-bottom: 12px;
+    margin-bottom: 10px;
 }
 
 .type-header h4 {
-    font-size: 1rem;
+    font-size: 0.9rem;
     font-weight: 600;
     margin: 0;
 }
 
 .type-actions {
     display: flex;
-    gap: 6px;
+    gap: 4px;
 }
 
 .type-actions .edit-btn {
     background: transparent;
     border: 1px solid var(--border);
     color: var(--text-muted);
-    padding: 4px 10px;
-    border-radius: 5px;
-    font-size: 0.7rem;
+    padding: 3px 8px;
+    border-radius: 4px;
+    font-size: 0.65rem;
     cursor: pointer;
     transition: all 0.2s;
 }
@@ -563,10 +591,10 @@
     background: transparent;
     border: 1px solid var(--border);
     color: var(--text-muted);
-    width: 22px;
-    height: 22px;
-    border-radius: 5px;
-    font-size: 0.9rem;
+    width: 20px;
+    height: 20px;
+    border-radius: 4px;
+    font-size: 0.8rem;
     cursor: pointer;
     display: flex;
     align-items: center;
@@ -583,34 +611,34 @@
 .type-details {
     display: grid;
     grid-template-columns: repeat(2, 1fr);
-    gap: 8px;
+    gap: 6px;
 }
 
 .type-stat {
     display: flex;
     flex-direction: column;
-    gap: 2px;
+    gap: 1px;
 }
 
 .type-stat .label {
-    font-size: 0.65rem;
+    font-size: 0.6rem;
     color: var(--text-muted);
     text-transform: uppercase;
-    letter-spacing: 0.5px;
+    letter-spacing: 0.3px;
 }
 
 .type-stat .value {
-    font-size: 0.85rem;
+    font-size: 0.8rem;
     font-weight: 500;
 }
 
 .type-badge {
     grid-column: 1 / -1;
-    margin-top: 8px;
-    padding: 4px 8px;
+    margin-top: 6px;
+    padding: 3px 6px;
     background: var(--accent-purple-dim);
     color: var(--accent-purple);
-    font-size: 0.65rem;
+    font-size: 0.6rem;
     border-radius: 4px;
     text-align: center;
 }
