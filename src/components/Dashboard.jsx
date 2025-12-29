@@ -2,20 +2,20 @@ import { useState } from 'react';
 import { useDashboard } from '../context/DashboardContext';
 
 export default function Dashboard() {
-    const { state, FIRMS, addAccountWithCost, updateAccountStatus, updateAccountBalance, updateAccountProfitTarget, deleteAccount, getFirmLimit } = useDashboard();
+    const { state, firms, addAccountWithCost, updateAccountStatus, updateAccountBalance, updateAccountProfitTarget, deleteAccount, getFirmLimit } = useDashboard();
 
     return (
         <div className="dashboard-tab">
             <section className="daily-goals">
                 <h2>Today's Tasks</h2>
                 <div className="task-list">
-                    {Object.values(FIRMS).map(firm => (
+                    {Object.values(firms).map(firm => (
                         <TaskItem
                             key={firm.id}
-                            icon={firm.id === 'apex' ? 'money' : 'diamond'}
-                            title={`Buy 1 ${firm.name} Eval (~$${state.costs[firm.evalCostKey] || 0})`}
-                            subtitle={firm.activationCostKey ? 'Use the discount!' : 'Higher value account'}
-                            priority={firm.id === 'apex' ? 'high' : 'medium'}
+                            icon={firm.color === 'orange' ? 'money' : 'diamond'}
+                            title={`Buy 1 ${firm.name} Eval (~$${firm.evalCost || 0})`}
+                            subtitle={firm.activationCost > 0 ? 'Has activation cost' : 'No activation needed'}
+                            priority={firm.color === 'orange' ? 'high' : 'medium'}
                         />
                     ))}
                     <TaskItem
@@ -36,7 +36,7 @@ export default function Dashboard() {
             <section className="accounts">
                 <h2>My Accounts</h2>
                 <div className="accounts-grid">
-                    {Object.values(FIRMS).map(firm => {
+                    {Object.values(firms).map(firm => {
                         const accounts = state.accounts[firm.id] || [];
                         const passed = accounts.filter(a => a.status === 'passed').length;
 
@@ -47,8 +47,8 @@ export default function Dashboard() {
                                 accounts={accounts}
                                 passed={passed}
                                 limit={getFirmLimit(firm.id)}
-                                defaultEvalCost={state.costs[firm.evalCostKey] || 0}
-                                defaultActivationCost={firm.activationCostKey ? state.costs[firm.activationCostKey] || 0 : 0}
+                                defaultEvalCost={firm.evalCost || 0}
+                                defaultActivationCost={firm.activationCost || 0}
                                 onAdd={(evalCost, profitTarget) => addAccountWithCost(firm.id, evalCost, profitTarget)}
                                 onStatusChange={(id, status, cost) => updateAccountStatus(firm.id, id, status, cost)}
                                 onBalanceChange={(id, balance) => updateAccountBalance(firm.id, id, balance)}
@@ -63,12 +63,12 @@ export default function Dashboard() {
             <section className="daily-strategy">
                 <h2>Daily Strategy</h2>
                 <div className="strategy-card">
-                    {Object.values(FIRMS).map(firm => (
+                    {Object.values(firms).map(firm => (
                         <StrategyItem
                             key={firm.id}
-                            icon={firm.id === 'apex' ? 'money' : 'diamond'}
+                            icon={firm.color === 'orange' ? 'money' : 'diamond'}
                             title={`Buy ${firm.name} Eval`}
-                            description={`Cost: ~$${state.costs[firm.evalCostKey] || 0}${firm.activationCostKey ? ' | Use the discount!' : ''}`}
+                            description={`Cost: ~$${firm.evalCost || 0}${firm.activationCost > 0 ? ` | Activation: $${firm.activationCost}` : ''}`}
                         />
                     ))}
                     <StrategyItem
@@ -251,7 +251,7 @@ function AccountCard({ firm, accounts, passed, limit, defaultEvalCost, defaultAc
                                             <option value="halfway">50% Done</option>
                                         )}
                                         <option value="passed">Passed</option>
-                                        {firm.activationCostKey && (
+                                        {firm.activationCost > 0 && (
                                             <option value="funded">Funded</option>
                                         )}
                                         <option value="failed">Failed</option>

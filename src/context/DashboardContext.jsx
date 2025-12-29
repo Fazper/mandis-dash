@@ -6,44 +6,42 @@ const DashboardContext = createContext({});
 
 export const useDashboard = () => useContext(DashboardContext);
 
-// Firm configurations - easy to add new firms here
-const FIRMS = {
+// Default firm/account type configurations - used as fallback
+const DEFAULT_FIRMS = {
     apex: {
         id: 'apex',
-        name: 'Apex',
+        name: 'Apex 50K',
         accountName: 'Apex 50K',
         maxFunded: 20,
-        evalCostKey: 'apexEval',
-        activationCostKey: 'apexActivation',
+        evalCost: 25,
+        activationCost: 65,
         color: 'orange',
         hasConsistencyRule: false,
         defaultProfitTarget: 3000
     },
-    lucid: {
-        id: 'lucid',
-        name: 'Lucid',
+    lucid50k: {
+        id: 'lucid50k',
+        name: 'Lucid 50K',
         accountName: 'Lucid Flex 50K',
         maxFunded: 5,
-        evalCostKey: 'lucidEval',
-        activationCostKey: null,
+        evalCost: 80,
+        activationCost: 0,
         color: 'purple',
         hasConsistencyRule: true,
         defaultProfitTarget: 3000
     }
 };
 
-const defaultCosts = {
-    apexEval: 25,
-    apexActivation: 65,
-    lucidEval: 80,
-    payoutEstimate: 2000
+const defaultSettings = {
+    payoutEstimate: 2000,
+    payoutStartDate: '2026-01'
 };
 
 export function DashboardProvider({ children }) {
     const { user } = useAuth();
     const [loading, setLoading] = useState(true);
-    const [costs, setCosts] = useState(defaultCosts);
-    const [payoutStartDate, setPayoutStartDate] = useState('2026-01');
+    const [firms, setFirms] = useState(DEFAULT_FIRMS);
+    const [settings, setSettings] = useState(defaultSettings);
     const [accounts, setAccounts] = useState({});
     const [expenses, setExpenses] = useState([]);
     const [dailyLog, setDailyLog] = useState([]);
@@ -60,9 +58,11 @@ export function DashboardProvider({ children }) {
     const loadAllData = async () => {
         setLoading(true);
         try {
+            // Load firms first, then other data that depends on firms
+            const loadedFirms = await loadFirms();
             await Promise.all([
                 loadSettings(),
-                loadAccounts(),
+                loadAccounts(loadedFirms),
                 loadExpenses(),
                 loadDailyLogs()
             ]);
@@ -70,6 +70,36 @@ export function DashboardProvider({ children }) {
             console.error('Load error:', err);
         }
         setLoading(false);
+    };
+
+    const loadFirms = async () => {
+        const { data } = await supabase
+            .from('firms')
+            .select('*')
+            .eq('user_id', user.id)
+            .order('created_at', { ascending: true });
+
+        if (data && data.length > 0) {
+            const firmsMap = {};
+            data.forEach(firm => {
+                firmsMap[firm.id] = {
+                    id: firm.id,
+                    name: firm.name,
+                    accountName: firm.account_name,
+                    maxFunded: firm.max_funded,
+                    evalCost: parseFloat(firm.eval_cost) || 0,
+                    activationCost: parseFloat(firm.activation_cost) || 0,
+                    color: firm.color || 'blue',
+                    hasConsistencyRule: firm.has_consistency_rule || false,
+                    defaultProfitTarget: parseFloat(firm.default_profit_target) || 3000
+                };
+            });
+            setFirms(firmsMap);
+            return firmsMap;
+        }
+        // Use defaults if no firms configured
+        setFirms(DEFAULT_FIRMS);
+        return DEFAULT_FIRMS;
     };
 
     const loadSettings = async () => {
@@ -80,12 +110,15 @@ export function DashboardProvider({ children }) {
             .single();
 
         if (data) {
-            setCosts(data.costs || defaultCosts);
-            setPayoutStartDate(data.payout_start_date || '2026-01');
+            setSettings({
+                payoutEstimate: data.payout_estimate || defaultSettings.payoutEstimate,
+                payoutStartDate: data.payout_start_date || defaultSettings.payoutStartDate
+            });
         }
     };
 
-    const loadAccounts = async () => {
+    const loadAccounts = async (currentFirms) => {
+        const firmsToUse = currentFirms || firms;
         const { data } = await supabase
             .from('accounts')
             .select('*')
@@ -94,25 +127,27 @@ export function DashboardProvider({ children }) {
 
         // Group accounts by firm_id
         const grouped = {};
-        Object.keys(FIRMS).forEach(firmId => {
+        Object.keys(firmsToUse).forEach(firmId => {
             grouped[firmId] = [];
         });
 
         if (data) {
             data.forEach(acc => {
-                if (grouped[acc.firm_id]) {
-                    grouped[acc.firm_id].push({
-                        id: acc.id,
-                        name: acc.name,
-                        status: acc.status,
-                        evalCost: parseFloat(acc.eval_cost) || 0,
-                        profitTarget: parseFloat(acc.profit_target) || 3000,
-                        balance: parseFloat(acc.balance) || 0,
-                        passedDate: acc.passed_date,
-                        fundedDate: acc.funded_date,
-                        createdDate: acc.created_at?.split('T')[0]
-                    });
+                // Initialize array if firm exists (even if not in current firms list)
+                if (!grouped[acc.firm_id]) {
+                    grouped[acc.firm_id] = [];
                 }
+                grouped[acc.firm_id].push({
+                    id: acc.id,
+                    name: acc.name,
+                    status: acc.status,
+                    evalCost: parseFloat(acc.eval_cost) || 0,
+                    profitTarget: parseFloat(acc.profit_target) || 3000,
+                    balance: parseFloat(acc.balance) || 0,
+                    passedDate: acc.passed_date,
+                    fundedDate: acc.funded_date,
+                    createdDate: acc.created_at?.split('T')[0]
+                });
             });
         }
 
@@ -158,39 +193,128 @@ export function DashboardProvider({ children }) {
     };
 
     // Settings functions
-    const updateCost = async (key, value) => {
-        const num = parseFloat(value);
-        if (isNaN(num) || num < 0) return;
-
-        const newCosts = { ...costs, [key]: num };
-        setCosts(newCosts);
+    const updateSetting = async (key, value) => {
+        const newSettings = { ...settings, [key]: value };
+        setSettings(newSettings);
 
         await supabase
             .from('user_settings')
             .upsert({
                 user_id: user.id,
-                costs: newCosts,
-                payout_start_date: payoutStartDate,
+                payout_estimate: newSettings.payoutEstimate,
+                payout_start_date: newSettings.payoutStartDate,
                 updated_at: new Date().toISOString()
             });
     };
 
-    const updatePayoutStartDate = async (value) => {
-        setPayoutStartDate(value);
+    // Firm management functions
+    const addFirm = async (firmData) => {
+        const firmId = firmData.id || firmData.name.toLowerCase().replace(/\s+/g, '');
 
-        await supabase
-            .from('user_settings')
-            .upsert({
+        const { data: newFirm, error } = await supabase
+            .from('firms')
+            .insert({
+                id: firmId,
                 user_id: user.id,
-                costs: costs,
-                payout_start_date: value,
-                updated_at: new Date().toISOString()
-            });
+                name: firmData.name,
+                account_name: firmData.accountName || firmData.name,
+                max_funded: firmData.maxFunded || 10,
+                eval_cost: firmData.evalCost || 0,
+                activation_cost: firmData.activationCost || 0,
+                color: firmData.color || 'blue',
+                has_consistency_rule: firmData.hasConsistencyRule || false,
+                default_profit_target: firmData.defaultProfitTarget || 3000
+            })
+            .select()
+            .single();
+
+        if (error) {
+            console.error('Add firm error:', error);
+            return null;
+        }
+
+        const firm = {
+            id: newFirm.id,
+            name: newFirm.name,
+            accountName: newFirm.account_name,
+            maxFunded: newFirm.max_funded,
+            evalCost: parseFloat(newFirm.eval_cost) || 0,
+            activationCost: parseFloat(newFirm.activation_cost) || 0,
+            color: newFirm.color,
+            hasConsistencyRule: newFirm.has_consistency_rule,
+            defaultProfitTarget: parseFloat(newFirm.default_profit_target) || 3000
+        };
+
+        setFirms(prev => ({ ...prev, [firmId]: firm }));
+        setAccounts(prev => ({ ...prev, [firmId]: [] }));
+        return firm;
+    };
+
+    const updateFirm = async (firmId, updates) => {
+        const dbUpdates = {};
+        if (updates.name !== undefined) dbUpdates.name = updates.name;
+        if (updates.accountName !== undefined) dbUpdates.account_name = updates.accountName;
+        if (updates.maxFunded !== undefined) dbUpdates.max_funded = updates.maxFunded;
+        if (updates.evalCost !== undefined) dbUpdates.eval_cost = updates.evalCost;
+        if (updates.activationCost !== undefined) dbUpdates.activation_cost = updates.activationCost;
+        if (updates.color !== undefined) dbUpdates.color = updates.color;
+        if (updates.hasConsistencyRule !== undefined) dbUpdates.has_consistency_rule = updates.hasConsistencyRule;
+        if (updates.defaultProfitTarget !== undefined) dbUpdates.default_profit_target = updates.defaultProfitTarget;
+
+        const { error } = await supabase
+            .from('firms')
+            .update(dbUpdates)
+            .eq('id', firmId)
+            .eq('user_id', user.id);
+
+        if (error) {
+            console.error('Update firm error:', error);
+            return;
+        }
+
+        setFirms(prev => ({
+            ...prev,
+            [firmId]: { ...prev[firmId], ...updates }
+        }));
+    };
+
+    const deleteFirm = async (firmId) => {
+        // Check if there are accounts under this firm
+        const firmAccounts = accounts[firmId] || [];
+        if (firmAccounts.length > 0) {
+            if (!confirm(`This will also delete ${firmAccounts.length} account(s). Continue?`)) {
+                return;
+            }
+            // Delete accounts first
+            await supabase.from('accounts').delete().eq('firm_id', firmId).eq('user_id', user.id);
+        }
+
+        const { error } = await supabase
+            .from('firms')
+            .delete()
+            .eq('id', firmId)
+            .eq('user_id', user.id);
+
+        if (error) {
+            console.error('Delete firm error:', error);
+            return;
+        }
+
+        setFirms(prev => {
+            const newFirms = { ...prev };
+            delete newFirms[firmId];
+            return newFirms;
+        });
+        setAccounts(prev => {
+            const newAccounts = { ...prev };
+            delete newAccounts[firmId];
+            return newAccounts;
+        });
     };
 
     // Account functions
     const addAccountWithCost = async (firmId, evalCost = 0, profitTarget = null) => {
-        const firm = FIRMS[firmId];
+        const firm = firms[firmId];
         if (!firm) return;
 
         const firmAccounts = accounts[firmId] || [];
@@ -247,7 +371,7 @@ export function DashboardProvider({ children }) {
     };
 
     const updateAccountStatus = async (firmId, accountId, status, cost = 0) => {
-        const firm = FIRMS[firmId];
+        const firm = firms[firmId];
         const today = new Date().toISOString().split('T')[0];
 
         const updates = { status };
@@ -412,7 +536,7 @@ export function DashboardProvider({ children }) {
             byFirm: {}
         };
 
-        Object.keys(FIRMS).forEach(firmId => {
+        Object.keys(firms).forEach(firmId => {
             stats.byFirm[firmId] = {
                 evalSpent: 0,
                 evalCount: 0,
@@ -424,7 +548,7 @@ export function DashboardProvider({ children }) {
         expenses.forEach(exp => {
             stats.totalSpent += exp.amount;
 
-            Object.keys(FIRMS).forEach(firmId => {
+            Object.keys(firms).forEach(firmId => {
                 if (exp.type === firmId) {
                     stats.byFirm[firmId].evalSpent += exp.amount;
                     stats.byFirm[firmId].evalCount++;
@@ -439,14 +563,14 @@ export function DashboardProvider({ children }) {
     };
 
     const getTotalPassed = () => {
-        return Object.keys(FIRMS).reduce((total, firmId) => {
+        return Object.keys(firms).reduce((total, firmId) => {
             const firmAccounts = accounts[firmId] || [];
             return total + firmAccounts.filter(a => a.status === 'passed' || a.status === 'funded').length;
         }, 0);
     };
 
     const getFirmLimit = (firmId) => {
-        return FIRMS[firmId]?.maxFunded || 0;
+        return firms[firmId]?.maxFunded || 0;
     };
 
     // Build state object for components that expect it
@@ -454,17 +578,19 @@ export function DashboardProvider({ children }) {
         accounts,
         expenses,
         dailyLog,
-        costs,
-        payoutStartDate
+        settings,
+        payoutStartDate: settings.payoutStartDate
     };
 
     return (
         <DashboardContext.Provider value={{
             state,
             loading,
-            FIRMS,
-            updateCost,
-            updatePayoutStartDate,
+            firms,
+            addFirm,
+            updateFirm,
+            deleteFirm,
+            updateSetting,
             addExpense,
             deleteExpense,
             addAccountWithCost,

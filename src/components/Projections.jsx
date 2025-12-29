@@ -25,17 +25,11 @@ function getMarketDaysCount(start, end) {
 }
 
 export default function Projections() {
-    const { state, FIRMS, calculateMoneyStats } = useDashboard();
+    const { state, firms, calculateMoneyStats } = useDashboard();
     const [month, setMonth] = useState(1);
     const [year, setYear] = useState(2026);
     const [passRate, setPassRate] = useState(50);
     const [payoutPerAccount, setPayoutPerAccount] = useState(500);
-
-    // Build limits from FIRMS config
-    const ACCOUNT_LIMITS = {};
-    Object.values(FIRMS).forEach(firm => {
-        ACCOUNT_LIMITS[firm.id] = firm.maxFunded;
-    });
 
     const monthNames = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
 
@@ -63,26 +57,26 @@ export default function Projections() {
 
         // Track passed counts per firm dynamically
         const cumulativePassed = {};
-        Object.values(FIRMS).forEach(firm => {
+        Object.values(firms).forEach(firm => {
             const firmAccounts = state.accounts[firm.id] || [];
             cumulativePassed[firm.id] = firmAccounts.filter(a => a.status === 'passed' || a.status === 'funded').length;
         });
 
         // Simulate a single day of trading
         const simulateDay = () => {
-            Object.values(FIRMS).forEach(firm => {
+            Object.values(firms).forEach(firm => {
                 const canBuy = Math.floor(cumulativePassed[firm.id]) < firm.maxFunded;
                 if (canBuy) {
                     // Add eval cost
-                    cumulativeExpenses += state.costs[firm.evalCostKey] || 0;
+                    cumulativeExpenses += firm.evalCost || 0;
 
                     // Apply pass rate - accounts with consistency rule take 2x longer (50% checkpoint)
                     const effectiveRate = firm.hasConsistencyRule ? rate / 2 : rate;
                     cumulativePassed[firm.id] = Math.min(cumulativePassed[firm.id] + effectiveRate, firm.maxFunded);
 
                     // Add activation cost if firm has it (scaled by pass rate)
-                    if (firm.activationCostKey) {
-                        cumulativeExpenses += effectiveRate * (state.costs[firm.activationCostKey] || 0);
+                    if (firm.activationCost > 0) {
+                        cumulativeExpenses += effectiveRate * (firm.activationCost || 0);
                     }
                 }
             });
@@ -148,7 +142,7 @@ export default function Projections() {
                 payoutsEnabled
             }
         };
-    }, [month, year, passRate, payoutPerAccount, state, FIRMS]);
+    }, [month, year, passRate, payoutPerAccount, state, firms]);
 
     const [payoutYear, payoutMonth] = state.payoutStartDate.split('-').map(Number);
     const payoutStartLabel = `${monthNames[payoutMonth - 1]} ${payoutYear}`;
