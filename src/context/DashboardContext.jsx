@@ -15,7 +15,8 @@ const FIRMS = {
         maxFunded: 20,
         evalCostKey: 'apexEval',
         activationCostKey: 'apexActivation',
-        color: 'orange'
+        color: 'orange',
+        hasConsistencyRule: false
     },
     lucid: {
         id: 'lucid',
@@ -23,19 +24,10 @@ const FIRMS = {
         accountName: 'Lucid Flex 50K',
         maxFunded: 5,
         evalCostKey: 'lucidEval',
-        activationCostKey: null, // No activation fee
-        color: 'purple'
+        activationCostKey: null,
+        color: 'purple',
+        hasConsistencyRule: true // 50% consistency rule
     }
-    // Easy to add more firms:
-    // topstep: {
-    //     id: 'topstep',
-    //     name: 'Topstep',
-    //     accountName: 'Topstep 50K',
-    //     maxFunded: 10,
-    //     evalCostKey: 'topstepEval',
-    //     activationCostKey: null,
-    //     color: 'blue'
-    // }
 };
 
 // Empty initial state - no hardcoded accounts

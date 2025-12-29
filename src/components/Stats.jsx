@@ -72,6 +72,12 @@ export default function Stats() {
                                         <span className="label">Passed</span>
                                         <span className="value">{accounts.filter(a => a.status === 'passed').length}</span>
                                     </div>
+                                    {firm.hasConsistencyRule && (
+                                        <div className="breakdown-item">
+                                            <span className="label">50%</span>
+                                            <span className="value">{accounts.filter(a => a.status === 'halfway').length}</span>
+                                        </div>
+                                    )}
                                     <div className="breakdown-item">
                                         <span className="label">In Progress</span>
                                         <span className="value">{accounts.filter(a => a.status === 'in-progress').length}</span>

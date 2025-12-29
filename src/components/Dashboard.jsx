@@ -103,12 +103,17 @@ function TaskItem({ icon, title, subtitle, priority }) {
 }
 
 function AccountCard({ firm, accounts, passed, limit, onAdd, onStatusChange, onDelete }) {
+    const halfway = accounts.filter(a => a.status === 'halfway').length;
+
     return (
         <div className={`account-card ${firm.id}`}>
             <h3>{firm.accountName} Accounts</h3>
             <div className="account-count">
                 <span className="passed">{passed}</span>
                 <span className="limit">/{limit}</span> Passed
+                {firm.hasConsistencyRule && halfway > 0 && (
+                    <span className="halfway-count"> ({halfway} at 50%)</span>
+                )}
             </div>
             <div className="account-details">
                 {accounts.length === 0 ? (
@@ -123,6 +128,9 @@ function AccountCard({ firm, accounts, passed, limit, onAdd, onStatusChange, onD
                                     onChange={(e) => onStatusChange(acc.id, e.target.value)}
                                 >
                                     <option value="in-progress">In Progress</option>
+                                    {firm.hasConsistencyRule && (
+                                        <option value="halfway">50% Done</option>
+                                    )}
                                     <option value="passed">Passed</option>
                                     <option value="failed">Failed</option>
                                 </select>

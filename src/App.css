@@ -464,8 +464,17 @@ section h2 {
     color: var(--accent-green);
 }
 
+.account-item.halfway span {
+    color: var(--accent-orange);
+}
+
 .account-item.failed span {
     color: var(--accent-red);
+}
+
+.halfway-count {
+    color: var(--accent-orange);
+    font-size: 0.85rem;
 }
 
 .account-item select {
