@@ -5,6 +5,10 @@
     box-sizing: border-box;
 }
 
+html {
+    overflow-x: hidden;
+}
+
 body {
     font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'Segoe UI', Roboto, sans-serif;
     background: var(--bg-primary);
@@ -12,6 +16,7 @@ body {
     color: var(--text-primary);
     padding: 24px;
     line-height: 1.5;
+    overflow-x: hidden;
 }
 
 .container {
@@ -58,6 +63,8 @@ section h2 {
 /* Tab Content */
 .tab-content {
     width: 100%;
+    min-height: 500px;
+    overflow-x: hidden;
 }
 
 .dashboard-tab,
@@ -65,6 +72,8 @@ section h2 {
 .projections-tab,
 .stats-tab {
     width: 100%;
+    max-width: 100%;
+    overflow-x: hidden;
 }
 
 /* Empty State */

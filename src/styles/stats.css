@@ -168,6 +168,8 @@
     grid-template-columns: repeat(2, 1fr);
     gap: 24px;
     margin-top: 24px;
+    max-width: 100%;
+    overflow: hidden;
 }
 
 @media (max-width: 900px) {
@@ -194,6 +196,7 @@
     display: flex;
     align-items: center;
     justify-content: center;
+    overflow: hidden;
 }
 
 .chart-empty {
