@@ -25,11 +25,17 @@ function getMarketDaysCount(start, end) {
 }
 
 export default function Projections() {
-    const { state, ACCOUNT_LIMITS, calculateMoneyStats } = useDashboard();
+    const { state, FIRMS, calculateMoneyStats } = useDashboard();
     const [month, setMonth] = useState(1);
     const [year, setYear] = useState(2026);
     const [passRate, setPassRate] = useState(50);
     const [payoutPerAccount, setPayoutPerAccount] = useState(500);
+
+    // Build limits from FIRMS config
+    const ACCOUNT_LIMITS = {};
+    Object.values(FIRMS).forEach(firm => {
+        ACCOUNT_LIMITS[firm.id] = firm.maxFunded;
+    });
 
     const monthNames = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
 
@@ -50,31 +56,43 @@ export default function Projections() {
         const daysInMonth = lastDay.getDate();
         const payoutsEnabled = canReceivePayouts(year, month);
 
-        const currentApexPassed = state.accounts.apex.filter(a => a.status === 'passed').length;
-        const currentLucidPassed = state.accounts.lucid.filter(a => a.status === 'passed').length;
+        // Initialize cumulative counts from current state - dynamic for all firms
         const currentStats = calculateMoneyStats();
-
-        let cumulativeApexPassed = currentApexPassed;
-        let cumulativeLucidPassed = currentLucidPassed;
         let cumulativeExpenses = currentStats.totalSpent;
         const rate = passRate / 100;
+
+        // Track passed counts per firm dynamically
+        const cumulativePassed = {};
+        Object.values(FIRMS).forEach(firm => {
+            const firmAccounts = state.accounts[firm.id] || [];
+            cumulativePassed[firm.id] = firmAccounts.filter(a => a.status === 'passed' || a.status === 'funded').length;
+        });
+
+        // Simulate a single day of trading
+        const simulateDay = () => {
+            Object.values(FIRMS).forEach(firm => {
+                const canBuy = Math.floor(cumulativePassed[firm.id]) < firm.maxFunded;
+                if (canBuy) {
+                    // Add eval cost
+                    cumulativeExpenses += state.costs[firm.evalCostKey] || 0;
+
+                    // Apply pass rate - accounts with consistency rule take 2x longer (50% checkpoint)
+                    const effectiveRate = firm.hasConsistencyRule ? rate / 2 : rate;
+                    cumulativePassed[firm.id] = Math.min(cumulativePassed[firm.id] + effectiveRate, firm.maxFunded);
+
+                    // Add activation cost if firm has it (scaled by pass rate)
+                    if (firm.activationCostKey) {
+                        cumulativeExpenses += effectiveRate * (state.costs[firm.activationCostKey] || 0);
+                    }
+                }
+            });
+        };
 
         // Pre-month calculation
         if (firstDay > today) {
             const daysToStart = getMarketDaysCount(today, new Date(firstDay.getTime() - 86400000));
             for (let i = 0; i < daysToStart; i++) {
-                const canBuyApex = Math.floor(cumulativeApexPassed) < ACCOUNT_LIMITS.apex;
-                const canBuyLucid = Math.floor(cumulativeLucidPassed) < ACCOUNT_LIMITS.lucid;
-
-                if (canBuyApex) {
-                    cumulativeExpenses += state.costs.apexEval;
-                    cumulativeApexPassed = Math.min(cumulativeApexPassed + rate, ACCOUNT_LIMITS.apex);
-                    cumulativeExpenses += rate * state.costs.apexActivation;
-                }
-                if (canBuyLucid) {
-                    cumulativeExpenses += state.costs.lucidEval;
-                    cumulativeLucidPassed = Math.min(cumulativeLucidPassed + rate, ACCOUNT_LIMITS.lucid);
-                }
+                simulateDay();
             }
         }
 
@@ -92,21 +110,13 @@ export default function Projections() {
             const isMarket = isMarketDay(date);
 
             if (isMarket && !isPast) {
-                const canBuyApex = Math.floor(cumulativeApexPassed) < ACCOUNT_LIMITS.apex;
-                const canBuyLucid = Math.floor(cumulativeLucidPassed) < ACCOUNT_LIMITS.lucid;
-
-                if (canBuyApex) {
-                    cumulativeExpenses += state.costs.apexEval;
-                    cumulativeApexPassed = Math.min(cumulativeApexPassed + rate, ACCOUNT_LIMITS.apex);
-                    cumulativeExpenses += rate * state.costs.apexActivation;
-                }
-                if (canBuyLucid) {
-                    cumulativeExpenses += state.costs.lucidEval;
-                    cumulativeLucidPassed = Math.min(cumulativeLucidPassed + rate, ACCOUNT_LIMITS.lucid);
-                }
+                simulateDay();
             }
 
-            const totalAccounts = Math.floor(cumulativeApexPassed) + Math.floor(cumulativeLucidPassed);
+            // Sum all firm accounts
+            const totalAccounts = Object.keys(cumulativePassed).reduce((sum, firmId) => {
+                return sum + Math.floor(cumulativePassed[firmId]);
+            }, 0);
             const totalPayout = payoutsEnabled ? totalAccounts * payoutPerAccount : 0;
 
             days.push({
@@ -122,7 +132,9 @@ export default function Projections() {
             });
         }
 
-        const finalTotalAccounts = Math.floor(cumulativeApexPassed) + Math.floor(cumulativeLucidPassed);
+        const finalTotalAccounts = Object.keys(cumulativePassed).reduce((sum, firmId) => {
+            return sum + Math.floor(cumulativePassed[firmId]);
+        }, 0);
         const finalPayout = payoutsEnabled ? finalTotalAccounts * payoutPerAccount : 0;
         const netProfit = finalPayout - cumulativeExpenses;
 
@@ -136,7 +148,7 @@ export default function Projections() {
                 payoutsEnabled
             }
         };
-    }, [month, year, passRate, payoutPerAccount, state]);
+    }, [month, year, passRate, payoutPerAccount, state, FIRMS]);
 
     const [payoutYear, payoutMonth] = state.payoutStartDate.split('-').map(Number);
     const payoutStartLabel = `${monthNames[payoutMonth - 1]} ${payoutYear}`;
