@@ -1,9 +1,10 @@
 import { useMemo } from 'react';
 import { useDashboard } from '../context/DashboardContext';
+import { ProjectionEngine } from '../utils/projections';
 import {
     BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
     PieChart, Pie, Cell, Legend,
-    AreaChart, Area
+    AreaChart, Area, Line, ComposedChart
 } from 'recharts';
 
 const COLORS = {
@@ -25,7 +26,7 @@ const STATUS_COLORS = {
 };
 
 export default function Stats() {
-    const { firms, accountTypes, accounts, expenses, calculateMoneyStats, getTotalPassed, calculatePotentialPayout } = useDashboard();
+    const { state, firms, accountTypes, accounts, expenses, calculateMoneyStats, getTotalPassed, calculatePotentialPayout } = useDashboard();
 
     // Guard against undefined data during initial load
     if (!firms || !accountTypes || !accounts) {
@@ -44,7 +45,7 @@ export default function Stats() {
     const allAccounts = Object.values(accounts).flat();
     const totalAccountsCount = allAccounts.length;
     const passedAndFundedCount = allAccounts.filter(a => a.status === 'passed' || a.status === 'funded').length;
-    const passRateCalc = totalAccountsCount > 0 ? ((passedAndFundedCount / totalAccountsCount) * 100).toFixed(0) : 0;
+    const passRateCalc = totalAccountsCount > 0 ? ((passedAndFundedCount / totalAccountsCount) * 100).toFixed(0) : 50;
 
     // Prepare chart data
     const chartData = useMemo(() => {
@@ -114,14 +115,18 @@ export default function Stats() {
             .map(([name, amount]) => ({ name, amount }))
             .sort((a, b) => b.amount - a.amount);
 
-        // ROI comparison
-        const roiData = [
-            { name: 'Spent', value: stats.totalSpent, color: COLORS.red },
-            { name: 'Potential Payout', value: potentialPayouts, color: COLORS.green }
-        ];
+        // Yearly projection using shared ProjectionEngine
+        const engine = new ProjectionEngine({
+            firms,
+            accountTypes,
+            accounts,
+            passRate: parseInt(passRateCalc) || 50,
+            payoutStartDate: state.payoutStartDate
+        });
+        const yearlyProjection = engine.generateYearlyProjection();
 
-        return { expensesByMonth, statusData, firmExpenseData, roiData };
-    }, [expenses, accounts, accountTypes, firms, stats.totalSpent, potentialPayouts]);
+        return { expensesByMonth, statusData, firmExpenseData, yearlyProjection };
+    }, [expenses, accounts, accountTypes, firms, state.payoutStartDate, passRateCalc]);
 
     const hasExpenses = chartData.expensesByMonth.length > 0;
     const hasAccounts = chartData.statusData.length > 0;
@@ -248,25 +253,64 @@ export default function Stats() {
                     </div>
                 </section>
 
-                {/* ROI Comparison */}
-                <section className="chart-section">
-                    <h2>Investment vs Potential Return</h2>
+                {/* Yearly Projection */}
+                <section className="chart-section wide">
+                    <h2>12-Month Projection (Cumulative)</h2>
                     <div className="chart-container">
-                        <ResponsiveContainer width="100%" height={250}>
-                            <BarChart data={chartData.roiData}>
+                        <ResponsiveContainer width="100%" height={280}>
+                            <ComposedChart data={chartData.yearlyProjection}>
+                                <defs>
+                                    <linearGradient id="colorPayouts" x1="0" y1="0" x2="0" y2="1">
+                                        <stop offset="5%" stopColor={COLORS.green} stopOpacity={0.2}/>
+                                        <stop offset="95%" stopColor={COLORS.green} stopOpacity={0}/>
+                                    </linearGradient>
+                                    <linearGradient id="colorExpenses" x1="0" y1="0" x2="0" y2="1">
+                                        <stop offset="5%" stopColor={COLORS.red} stopOpacity={0.2}/>
+                                        <stop offset="95%" stopColor={COLORS.red} stopOpacity={0}/>
+                                    </linearGradient>
+                                </defs>
                                 <CartesianGrid strokeDasharray="3 3" stroke="#374151" />
-                                <XAxis dataKey="name" stroke="#9ca3af" fontSize={12} />
+                                <XAxis dataKey="month" stroke="#9ca3af" fontSize={12} />
                                 <YAxis stroke="#9ca3af" fontSize={12} tickFormatter={(v) => `$${(v/1000).toFixed(0)}k`} />
                                 <Tooltip
                                     contentStyle={{ background: '#1f2937', border: '1px solid #374151', borderRadius: 8 }}
-                                    formatter={(value) => [`$${value.toLocaleString()}`, '']}
+                                    formatter={(value, name) => [
+                                        `$${value.toLocaleString()}`,
+                                        name === 'payouts' ? 'Cumulative Payouts' : name === 'expenses' ? 'Cumulative Expenses' : 'Net Position'
+                                    ]}
                                 />
-                                <Bar dataKey="value" radius={[4, 4, 0, 0]}>
-                                    {chartData.roiData.map((entry, index) => (
-                                        <Cell key={`cell-${index}`} fill={entry.color} />
-                                    ))}
-                                </Bar>
-                            </BarChart>
+                                <Area
+                                    type="monotone"
+                                    dataKey="payouts"
+                                    stroke={COLORS.green}
+                                    strokeWidth={2}
+                                    fillOpacity={1}
+                                    fill="url(#colorPayouts)"
+                                />
+                                <Area
+                                    type="monotone"
+                                    dataKey="expenses"
+                                    stroke={COLORS.red}
+                                    strokeWidth={2}
+                                    fillOpacity={1}
+                                    fill="url(#colorExpenses)"
+                                />
+                                <Line
+                                    type="monotone"
+                                    dataKey="net"
+                                    stroke={COLORS.blue}
+                                    strokeWidth={3}
+                                    dot={{ fill: COLORS.blue, strokeWidth: 2, r: 4 }}
+                                    activeDot={{ r: 6, strokeWidth: 2, stroke: '#fff' }}
+                                />
+                                <Legend
+                                    formatter={(value) => (
+                                        <span style={{ color: '#e5e7eb' }}>
+                                            {value === 'payouts' ? 'Cumulative Payouts' : value === 'expenses' ? 'Cumulative Expenses' : 'Net Profit/Loss'}
+                                        </span>
+                                    )}
+                                />
+                            </ComposedChart>
                         </ResponsiveContainer>
                     </div>
                 </section>

@@ -189,6 +189,11 @@
     box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2);
 }
 
+/* Wide chart spans full width */
+.chart-section.wide {
+    grid-column: 1 / -1;
+}
+
 .chart-section h2 {
     font-size: 1rem;
     font-weight: 600;
