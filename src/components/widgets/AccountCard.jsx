@@ -4,8 +4,8 @@ export default function AccountCard({
     accountType,
     firm,
     accounts,
-    passed,
-    limit,
+    firmFunded,
+    firmLimit,
     defaultEvalCost,
     defaultActivationCost,
     onAdd,
@@ -26,6 +26,7 @@ export default function AccountCard({
     const [targetInput, setTargetInput] = useState('');
 
     const halfway = accounts.filter(a => a.status === 'halfway').length;
+    const passed = accounts.filter(a => a.status === 'passed').length;
     const funded = accounts.filter(a => a.status === 'funded').length;
 
     const handleAdd = () => {
@@ -76,16 +77,21 @@ export default function AccountCard({
     };
 
     const cardTitle = firm ? `${firm.name} ${accountType.name}` : accountType.name;
+    const atFirmLimit = firmFunded >= firmLimit;
 
     return (
         <div className={`account-card ${accountType.color || 'blue'}`}>
-            <h3>{cardTitle} Accounts</h3>
+            <h3>{cardTitle}</h3>
             <div className="account-count">
-                <span className="passed">{passed}</span>
-                <span className="limit">/{limit}</span> Passed
-                {funded > 0 && <span className="funded-count"> ({funded} funded)</span>}
+                <span className="passed">{passed + funded}</span>
+                <span className="limit">/{firmLimit}</span>
+                <span className="count-label"> Funded ({firm?.name})</span>
+            </div>
+            <div className="account-stats">
+                {funded > 0 && <span className="funded-count">{funded} funded</span>}
+                {passed > 0 && <span className="passed-count">{passed} passed</span>}
                 {accountType.hasConsistencyRule && halfway > 0 && (
-                    <span className="halfway-count"> ({halfway} at 50%)</span>
+                    <span className="halfway-count">{halfway} at 50%</span>
                 )}
             </div>
             <div className="account-details">
@@ -235,7 +241,7 @@ export default function AccountCard({
                     </div>
                 </div>
             ) : (
-                <button onClick={() => setShowAddForm(true)} disabled={passed >= limit}>+ Add Account</button>
+                <button onClick={() => setShowAddForm(true)} disabled={atFirmLimit}>+ Add Account</button>
             )}
         </div>
     );

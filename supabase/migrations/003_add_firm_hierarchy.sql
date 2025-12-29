@@ -1,5 +1,8 @@
 -- Migration: Add proper firm hierarchy
 -- Firms (Apex, Topstep) → Account Types (50K, 100K) → Accounts
+--
+-- Firm level: name, color, website, notes, max_funded (firm-wide limit)
+-- Account Type level: name, eval_cost, activation_cost, profit_target, consistency_rule
 
 -- 1. Create new firms table (parent level - e.g., Apex, Topstep)
 CREATE TABLE IF NOT EXISTS prop_firms (
@@ -9,6 +12,7 @@ CREATE TABLE IF NOT EXISTS prop_firms (
     color TEXT NOT NULL DEFAULT 'blue',
     website TEXT,
     notes TEXT,
+    max_funded INTEGER NOT NULL DEFAULT 20,
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     UNIQUE(user_id, name)
 );
@@ -18,6 +22,10 @@ ALTER TABLE firms RENAME TO account_types;
 
 -- Add firm_id column to account_types (nullable initially for migration)
 ALTER TABLE account_types ADD COLUMN IF NOT EXISTS firm_id UUID REFERENCES prop_firms(id) ON DELETE CASCADE;
+
+-- Remove max_funded and account_name from account_types (now on firm level / redundant)
+ALTER TABLE account_types DROP COLUMN IF EXISTS max_funded;
+ALTER TABLE account_types DROP COLUMN IF EXISTS account_name;
 
 -- 3. Enable RLS on prop_firms
 ALTER TABLE prop_firms ENABLE ROW LEVEL SECURITY;

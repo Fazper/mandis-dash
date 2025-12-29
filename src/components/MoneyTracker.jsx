@@ -326,10 +326,6 @@ function AccountTypeCard({ type, onEdit, onDelete }) {
                     <span className="value">${type.activationCost}</span>
                 </div>
                 <div className="type-stat">
-                    <span className="label">Max Funded</span>
-                    <span className="value">{type.maxFunded}</span>
-                </div>
-                <div className="type-stat">
                     <span className="label">Profit Target</span>
                     <span className="value">${type.defaultProfitTarget}</span>
                 </div>
@@ -346,7 +342,8 @@ function FirmForm({ firm, onSave, onCancel }) {
         name: firm?.name || '',
         color: firm?.color || 'blue',
         website: firm?.website || '',
-        notes: firm?.notes || ''
+        notes: firm?.notes || '',
+        maxFunded: firm?.maxFunded || 20
     });
 
     const colors = ['orange', 'purple', 'blue', 'green', 'red', 'teal'];
@@ -354,7 +351,10 @@ function FirmForm({ firm, onSave, onCancel }) {
     const handleSubmit = (e) => {
         e.preventDefault();
         if (!formData.name) return;
-        onSave(formData);
+        onSave({
+            ...formData,
+            maxFunded: parseInt(formData.maxFunded) || 20
+        });
     };
 
     return (
@@ -374,12 +374,33 @@ function FirmForm({ firm, onSave, onCancel }) {
                         />
                     </div>
                     <div className="form-field">
+                        <label>Max Funded Accounts</label>
+                        <input
+                            type="number"
+                            value={formData.maxFunded}
+                            onChange={(e) => setFormData({ ...formData, maxFunded: e.target.value })}
+                            min="1"
+                        />
+                    </div>
+                </div>
+
+                <div className="form-row">
+                    <div className="form-field">
                         <label>Website (optional)</label>
                         <input
                             type="url"
                             value={formData.website}
                             onChange={(e) => setFormData({ ...formData, website: e.target.value })}
                             placeholder="https://..."
+                        />
+                    </div>
+                    <div className="form-field">
+                        <label>Notes (optional)</label>
+                        <input
+                            type="text"
+                            value={formData.notes}
+                            onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
+                            placeholder="Any notes..."
                         />
                     </div>
                 </div>
@@ -398,15 +419,6 @@ function FirmForm({ firm, onSave, onCancel }) {
                             ))}
                         </div>
                     </div>
-                    <div className="form-field">
-                        <label>Notes (optional)</label>
-                        <input
-                            type="text"
-                            value={formData.notes}
-                            onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
-                            placeholder="Any notes..."
-                        />
-                    </div>
                 </div>
 
                 <div className="form-actions">
@@ -421,9 +433,7 @@ function FirmForm({ firm, onSave, onCancel }) {
 function AccountTypeForm({ type, firmId, firmColor, firms, onSave, onCancel }) {
     const [formData, setFormData] = useState({
         name: type?.name || '',
-        accountName: type?.accountName || '',
         firmId: type?.firmId || firmId,
-        maxFunded: type?.maxFunded || 10,
         evalCost: type?.evalCost || 0,
         activationCost: type?.activationCost || 0,
         color: type?.color || firmColor || 'blue',
@@ -438,8 +448,6 @@ function AccountTypeForm({ type, firmId, firmColor, firms, onSave, onCancel }) {
         if (!formData.name) return;
         onSave({
             ...formData,
-            accountName: formData.accountName || formData.name,
-            maxFunded: parseInt(formData.maxFunded) || 10,
             evalCost: parseFloat(formData.evalCost) || 0,
             activationCost: parseFloat(formData.activationCost) || 0,
             defaultProfitTarget: parseFloat(formData.defaultProfitTarget) || 3000
@@ -474,17 +482,17 @@ function AccountTypeForm({ type, firmId, firmColor, firms, onSave, onCancel }) {
                             type="text"
                             value={formData.name}
                             onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                            placeholder="e.g., 50K, 100K Flex"
+                            placeholder="e.g., 50K, 100K, 150K Flex"
                             required
                         />
                     </div>
                     <div className="form-field">
-                        <label>Account Name Format</label>
+                        <label>Profit Target ($)</label>
                         <input
-                            type="text"
-                            value={formData.accountName}
-                            onChange={(e) => setFormData({ ...formData, accountName: e.target.value })}
-                            placeholder="e.g., Apex Flex 50K"
+                            type="number"
+                            value={formData.defaultProfitTarget}
+                            onChange={(e) => setFormData({ ...formData, defaultProfitTarget: e.target.value })}
+                            step="100"
                         />
                     </div>
                 </div>
@@ -506,27 +514,6 @@ function AccountTypeForm({ type, firmId, firmColor, firms, onSave, onCancel }) {
                             value={formData.activationCost}
                             onChange={(e) => setFormData({ ...formData, activationCost: e.target.value })}
                             step="0.01"
-                        />
-                    </div>
-                </div>
-
-                <div className="form-row">
-                    <div className="form-field">
-                        <label>Max Funded Accounts</label>
-                        <input
-                            type="number"
-                            value={formData.maxFunded}
-                            onChange={(e) => setFormData({ ...formData, maxFunded: e.target.value })}
-                            min="1"
-                        />
-                    </div>
-                    <div className="form-field">
-                        <label>Default Profit Target ($)</label>
-                        <input
-                            type="number"
-                            value={formData.defaultProfitTarget}
-                            onChange={(e) => setFormData({ ...formData, defaultProfitTarget: e.target.value })}
-                            step="100"
                         />
                     </div>
                 </div>

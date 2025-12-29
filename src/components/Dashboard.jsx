@@ -13,7 +13,8 @@ export default function Dashboard() {
         updateAccountBalance,
         updateAccountProfitTarget,
         deleteAccount,
-        getAccountTypeLimit,
+        getFirmLimit,
+        getFirmFundedCount,
         addGoal,
         deleteGoal,
         toggleGoalCompletion,
@@ -87,17 +88,17 @@ export default function Dashboard() {
                 <h2>My Accounts</h2>
                 <div className="accounts-grid">
                     {Object.values(accountTypes).map(type => {
+                        const firm = firms[type.firmId];
                         const typeAccounts = state.accounts[type.id] || [];
-                        const passed = typeAccounts.filter(a => a.status === 'passed' || a.status === 'funded').length;
 
                         return (
                             <AccountCard
                                 key={type.id}
                                 accountType={type}
-                                firm={firms[type.firmId]}
+                                firm={firm}
                                 accounts={typeAccounts}
-                                passed={passed}
-                                limit={getAccountTypeLimit(type.id)}
+                                firmFunded={getFirmFundedCount(type.firmId)}
+                                firmLimit={getFirmLimit(type.firmId)}
                                 defaultEvalCost={type.evalCost || 0}
                                 defaultActivationCost={type.activationCost || 0}
                                 onAdd={(cost, target, date) => addAccount(type.id, cost, target, date)}

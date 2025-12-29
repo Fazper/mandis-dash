@@ -70,7 +70,8 @@ export function DashboardProvider({ children }) {
                     name: firm.name,
                     color: firm.color || 'blue',
                     website: firm.website,
-                    notes: firm.notes
+                    notes: firm.notes,
+                    maxFunded: firm.max_funded || 20
                 };
             });
         }
@@ -86,7 +87,8 @@ export function DashboardProvider({ children }) {
                 name: firmData.name,
                 color: firmData.color || 'blue',
                 website: firmData.website || null,
-                notes: firmData.notes || null
+                notes: firmData.notes || null,
+                max_funded: firmData.maxFunded || 20
             })
             .select()
             .single();
@@ -101,7 +103,8 @@ export function DashboardProvider({ children }) {
             name: newFirm.name,
             color: newFirm.color,
             website: newFirm.website,
-            notes: newFirm.notes
+            notes: newFirm.notes,
+            maxFunded: newFirm.max_funded
         };
 
         setFirms(prev => ({ ...prev, [firm.id]: firm }));
@@ -109,9 +112,16 @@ export function DashboardProvider({ children }) {
     };
 
     const updateFirm = async (firmId, updates) => {
+        const dbUpdates = {};
+        if (updates.name !== undefined) dbUpdates.name = updates.name;
+        if (updates.color !== undefined) dbUpdates.color = updates.color;
+        if (updates.website !== undefined) dbUpdates.website = updates.website;
+        if (updates.notes !== undefined) dbUpdates.notes = updates.notes;
+        if (updates.maxFunded !== undefined) dbUpdates.max_funded = updates.maxFunded;
+
         const { error } = await supabase
             .from('prop_firms')
-            .update(updates)
+            .update(dbUpdates)
             .eq('id', firmId)
             .eq('user_id', user.id);
 
@@ -193,8 +203,6 @@ export function DashboardProvider({ children }) {
                     id: type.id,
                     firmId: type.firm_id,
                     name: type.name,
-                    accountName: type.account_name,
-                    maxFunded: type.max_funded,
                     evalCost: parseFloat(type.eval_cost) || 0,
                     activationCost: parseFloat(type.activation_cost) || 0,
                     color: type.color || 'blue',
@@ -208,7 +216,7 @@ export function DashboardProvider({ children }) {
     };
 
     const addAccountType = async (typeData) => {
-        const typeId = typeData.name.toLowerCase().replace(/\s+/g, '-');
+        const typeId = `${typeData.firmId}-${typeData.name.toLowerCase().replace(/\s+/g, '-')}`;
 
         const { data: newType, error } = await supabase
             .from('account_types')
@@ -217,8 +225,6 @@ export function DashboardProvider({ children }) {
                 user_id: user.id,
                 firm_id: typeData.firmId,
                 name: typeData.name,
-                account_name: typeData.accountName || typeData.name,
-                max_funded: typeData.maxFunded || 10,
                 eval_cost: typeData.evalCost || 0,
                 activation_cost: typeData.activationCost || 0,
                 color: typeData.color || firms[typeData.firmId]?.color || 'blue',
@@ -237,8 +243,6 @@ export function DashboardProvider({ children }) {
             id: newType.id,
             firmId: newType.firm_id,
             name: newType.name,
-            accountName: newType.account_name,
-            maxFunded: newType.max_funded,
             evalCost: parseFloat(newType.eval_cost) || 0,
             activationCost: parseFloat(newType.activation_cost) || 0,
             color: newType.color,
@@ -254,9 +258,7 @@ export function DashboardProvider({ children }) {
     const updateAccountType = async (typeId, updates) => {
         const dbUpdates = {};
         if (updates.name !== undefined) dbUpdates.name = updates.name;
-        if (updates.accountName !== undefined) dbUpdates.account_name = updates.accountName;
         if (updates.firmId !== undefined) dbUpdates.firm_id = updates.firmId;
-        if (updates.maxFunded !== undefined) dbUpdates.max_funded = updates.maxFunded;
         if (updates.evalCost !== undefined) dbUpdates.eval_cost = updates.evalCost;
         if (updates.activationCost !== undefined) dbUpdates.activation_cost = updates.activationCost;
         if (updates.color !== undefined) dbUpdates.color = updates.color;
@@ -358,16 +360,24 @@ export function DashboardProvider({ children }) {
         const accountType = accountTypes[accountTypeId];
         if (!accountType) return;
 
-        const typeAccounts = accounts[accountTypeId] || [];
-        const passedCount = typeAccounts.filter(a => a.status === 'passed' || a.status === 'funded').length;
+        const firm = firms[accountType.firmId];
+        if (!firm) return;
 
-        if (passedCount >= accountType.maxFunded) {
-            alert(`Max ${accountType.maxFunded} funded accounts reached for ${accountType.name}!`);
+        // Check firm-wide funded limit
+        const firmTypes = Object.values(accountTypes).filter(t => t.firmId === firm.id);
+        const totalFunded = firmTypes.reduce((sum, t) => {
+            const typeAccs = accounts[t.id] || [];
+            return sum + typeAccs.filter(a => a.status === 'passed' || a.status === 'funded').length;
+        }, 0);
+
+        if (totalFunded >= firm.maxFunded) {
+            alert(`Max ${firm.maxFunded} funded accounts reached for ${firm.name}!`);
             return;
         }
 
+        const typeAccounts = accounts[accountTypeId] || [];
         const accountNum = typeAccounts.length + 1;
-        const accountName = `${accountType.accountName} #${accountNum}`;
+        const accountName = `${firm.name} ${accountType.name} #${accountNum}`;
         const dateToUse = createdDate || new Date().toISOString().split('T')[0];
 
         const { data: newAccount, error } = await supabase
@@ -881,8 +891,18 @@ export function DashboardProvider({ children }) {
         }, 0);
     };
 
-    const getAccountTypeLimit = (typeId) => {
-        return accountTypes[typeId]?.maxFunded || 0;
+    // Get firm's max funded limit
+    const getFirmLimit = (firmId) => {
+        return firms[firmId]?.maxFunded || 0;
+    };
+
+    // Get firm's current funded count (across all account types)
+    const getFirmFundedCount = (firmId) => {
+        const firmTypes = Object.values(accountTypes).filter(t => t.firmId === firmId);
+        return firmTypes.reduce((sum, t) => {
+            const typeAccs = accounts[t.id] || [];
+            return sum + typeAccs.filter(a => a.status === 'passed' || a.status === 'funded').length;
+        }, 0);
     };
 
     // Helper to get account types for a specific firm
@@ -936,7 +956,8 @@ export function DashboardProvider({ children }) {
             resetData,
             calculateMoneyStats,
             getTotalPassed,
-            getAccountTypeLimit
+            getFirmLimit,
+            getFirmFundedCount
         }}>
             {children}
         </DashboardContext.Provider>
