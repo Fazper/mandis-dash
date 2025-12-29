@@ -40,6 +40,7 @@ body {
 .container {
     max-width: 1400px;
     margin: 0 auto;
+    width: 100%;
 }
 
 /* Loading Screen */
@@ -353,6 +354,7 @@ section h2 {
 
 .task-item .task-content {
     flex: 1;
+    min-width: 0;
 }
 
 .task-item .task-content h4 {
