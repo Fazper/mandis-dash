@@ -60,7 +60,7 @@ function AppContent() {
 function App() {
     return (
         <AuthProvider>
-            <BrowserRouter basename="/PropDashboard-React">
+            <BrowserRouter basename="/mandis-dash">
                 <AppContent />
             </BrowserRouter>
         </AuthProvider>

@@ -6,7 +6,7 @@ export default function Header() {
     return (
         <header className="app-header">
             <div className="header-left">
-                <h1>Prop Trading Dashboard</h1>
+                <h1>Mandis Dash</h1>
                 <p className="subtitle">Daily Goals & Account Tracker</p>
             </div>
             <div className="header-right">
