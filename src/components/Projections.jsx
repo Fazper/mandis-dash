@@ -25,7 +25,7 @@ function getMarketDaysCount(start, end) {
 }
 
 export default function Projections() {
-    const { state, firms, accountTypes, accounts, calculateMoneyStats } = useDashboard();
+    const { state, firms, accountTypes, accounts } = useDashboard();
     const [month, setMonth] = useState(1);
     const [year, setYear] = useState(2026);
     const [passRate, setPassRate] = useState(50);
@@ -49,9 +49,8 @@ export default function Projections() {
         const daysInMonth = lastDay.getDate();
         const payoutsEnabled = canReceivePayouts(year, month);
 
-        // Initialize from current state
-        const currentStats = calculateMoneyStats();
-        let cumulativeExpenses = currentStats.totalSpent;
+        // Track expenses for this specific month only
+        let monthlyExpenses = 0;
         const rate = passRate / 100;
 
         // Track passed/funded accounts per account type
@@ -63,30 +62,24 @@ export default function Projections() {
             passedAccounts[type.id] = typeAccounts.filter(a => a.status === 'passed' || a.status === 'funded').length;
         });
 
-        // Helper to get firm's total passed accounts
-        const getFirmPassedTotal = (firmId) => {
-            return Object.values(accountTypes)
-                .filter(t => t.firmId === firmId)
-                .reduce((sum, t) => sum + passedAccounts[t.id], 0);
-        };
-
         // Simulate a single day of trading
         // Model: Each day, for each account type, if firm has room:
         // - Buy 1 eval (pay eval cost)
         // - That eval has passRate% chance to pass (we track fractionally for smooth projection)
         // - When it passes, pay activation cost
-        const simulateDay = () => {
+        // trackExpenses: whether to add expenses to monthlyExpenses (only true for selected month)
+        const simulateDay = (trackExpenses = false) => {
             Object.values(accountTypes).forEach(type => {
                 const firm = firms[type.firmId];
                 if (!firm) return;
 
-                const firmPassedTotal = getFirmPassedTotal(type.firmId);
+                // Calculate room using the fractional values (not floored) to prevent over-buying
+                const firmPassedTotal = Object.values(accountTypes)
+                    .filter(t => t.firmId === type.firmId)
+                    .reduce((sum, t) => sum + passedAccounts[t.id], 0);
                 const roomInFirm = firm.maxFunded - firmPassedTotal;
 
                 if (roomInFirm <= 0) return; // Firm is at max capacity
-
-                // Buy 1 eval for this account type (cost = eval cost)
-                cumulativeExpenses += type.evalCost || 0;
 
                 // Calculate how much this account progresses toward passing
                 // Accounts with consistency rule take 2x longer (must hit 50% checkpoint first)
@@ -94,21 +87,31 @@ export default function Projections() {
 
                 // The eval passes with probability = effectiveRate
                 // We model this as fractional accounts for smooth projections
+                // Only increment up to the available room
                 const passIncrement = Math.min(effectiveRate, roomInFirm);
+
+                if (passIncrement <= 0) return; // No room for more accounts
+
+                // Buy 1 eval for this account type (cost = eval cost)
+                // Only track expenses if we're in the selected month
+                if (trackExpenses) {
+                    monthlyExpenses += type.evalCost || 0;
+                }
+
                 passedAccounts[type.id] += passIncrement;
 
                 // When accounts pass/fund, pay activation cost (proportional to pass increment)
-                if (type.activationCost > 0) {
-                    cumulativeExpenses += passIncrement * type.activationCost;
+                if (type.activationCost > 0 && trackExpenses) {
+                    monthlyExpenses += passIncrement * type.activationCost;
                 }
             });
         };
 
-        // Pre-month calculation
+        // Pre-month calculation (don't track expenses - those are before the selected month)
         if (firstDay > today) {
             const daysToStart = getMarketDaysCount(today, new Date(firstDay.getTime() - 86400000));
             for (let i = 0; i < daysToStart; i++) {
-                simulateDay();
+                simulateDay(false);
             }
         }
 
@@ -126,7 +129,7 @@ export default function Projections() {
             const isMarket = isMarketDay(date);
 
             if (isMarket && !isPast) {
-                simulateDay();
+                simulateDay(true); // Track expenses for this month
             }
 
             // Sum all passed accounts and calculate payout using expected payouts
@@ -162,13 +165,13 @@ export default function Projections() {
             const passedCount = Math.floor(passedAccounts[typeId]);
             return sum + (passedCount * (type?.expectedPayout || 2000));
         }, 0) : 0;
-        const netProfit = finalPayout - cumulativeExpenses;
+        const netProfit = finalPayout - monthlyExpenses;
 
         return {
             days,
             summary: {
                 totalAccounts: finalTotalAccounts,
-                totalExpenses: cumulativeExpenses,
+                monthlyExpenses: monthlyExpenses,
                 totalPayout: finalPayout,
                 netProfit,
                 payoutsEnabled
@@ -254,8 +257,8 @@ export default function Projections() {
                             <div className="value purple">{calendarData.summary.totalAccounts} accounts</div>
                         </div>
                         <div className="summary-item">
-                            <div className="label">Total Expenses</div>
-                            <div className="value red">${calendarData.summary.totalExpenses.toLocaleString()}</div>
+                            <div className="label">{monthNames[month]} Expenses</div>
+                            <div className="value red">${calendarData.summary.monthlyExpenses.toLocaleString()}</div>
                         </div>
                         <div className="summary-item">
                             <div className="label">
