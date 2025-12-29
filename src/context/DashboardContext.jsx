@@ -1,6 +1,7 @@
-import { createContext, useContext, useEffect, useState } from 'react';
+import { createContext, useContext, useEffect, useState, useCallback } from 'react';
 import { supabase } from '../lib/supabase';
 import { useAuth } from './AuthContext';
+import { useToast } from './ToastContext';
 
 const DashboardContext = createContext({});
 
@@ -13,6 +14,7 @@ const defaultSettings = {
 
 export function DashboardProvider({ children }) {
     const { user } = useAuth();
+    const toast = useToast();
     const [loading, setLoading] = useState(true);
 
     // Hierarchy: firms → accountTypes → accounts
@@ -95,6 +97,13 @@ export function DashboardProvider({ children }) {
 
         if (error) {
             console.error('Add firm error:', error);
+            if (error.code === '42P01') {
+                toast.error('Database not set up. Please run the migration first.');
+            } else if (error.code === '23505') {
+                toast.error(`Firm "${firmData.name}" already exists.`);
+            } else {
+                toast.error(`Failed to add firm: ${error.message}`);
+            }
             return null;
         }
 
@@ -108,6 +117,7 @@ export function DashboardProvider({ children }) {
         };
 
         setFirms(prev => ({ ...prev, [firm.id]: firm }));
+        toast.success(`Added firm: ${firm.name}`);
         return firm;
     };
 
@@ -127,6 +137,7 @@ export function DashboardProvider({ children }) {
 
         if (error) {
             console.error('Update firm error:', error);
+            toast.error(`Failed to update firm: ${error.message}`);
             return;
         }
 
@@ -134,6 +145,7 @@ export function DashboardProvider({ children }) {
             ...prev,
             [firmId]: { ...prev[firmId], ...updates }
         }));
+        toast.success('Firm updated');
     };
 
     const deleteFirm = async (firmId, confirmed = false) => {
@@ -163,8 +175,11 @@ export function DashboardProvider({ children }) {
 
         if (error) {
             console.error('Delete firm error:', error);
+            toast.error(`Failed to delete firm: ${error.message}`);
             return { error };
         }
+
+        const firmName = firms[firmId]?.name;
 
         // Update local state
         setFirms(prev => {
@@ -185,6 +200,7 @@ export function DashboardProvider({ children }) {
             return newAccounts;
         });
 
+        toast.success(`Deleted firm: ${firmName}`);
         return { success: true };
     };
 
@@ -236,6 +252,11 @@ export function DashboardProvider({ children }) {
 
         if (error) {
             console.error('Add account type error:', error);
+            if (error.code === '23505') {
+                toast.error(`Account type "${typeData.name}" already exists for this firm.`);
+            } else {
+                toast.error(`Failed to add account type: ${error.message}`);
+            }
             return null;
         }
 
@@ -252,6 +273,7 @@ export function DashboardProvider({ children }) {
 
         setAccountTypes(prev => ({ ...prev, [accountType.id]: accountType }));
         setAccounts(prev => ({ ...prev, [accountType.id]: [] }));
+        toast.success(`Added account type: ${accountType.name}`);
         return accountType;
     };
 
@@ -273,6 +295,7 @@ export function DashboardProvider({ children }) {
 
         if (error) {
             console.error('Update account type error:', error);
+            toast.error(`Failed to update account type: ${error.message}`);
             return;
         }
 
@@ -280,6 +303,7 @@ export function DashboardProvider({ children }) {
             ...prev,
             [typeId]: { ...prev[typeId], ...updates }
         }));
+        toast.success('Account type updated');
     };
 
     const deleteAccountType = async (typeId, confirmed = false) => {
@@ -302,8 +326,11 @@ export function DashboardProvider({ children }) {
 
         if (error) {
             console.error('Delete account type error:', error);
+            toast.error(`Failed to delete account type: ${error.message}`);
             return { error };
         }
+
+        const typeName = accountTypes[typeId]?.name;
 
         setAccountTypes(prev => {
             const newTypes = { ...prev };
@@ -317,6 +344,7 @@ export function DashboardProvider({ children }) {
             return newAccounts;
         });
 
+        toast.success(`Deleted account type: ${typeName}`);
         return { success: true };
     };
 
@@ -371,7 +399,7 @@ export function DashboardProvider({ children }) {
         }, 0);
 
         if (totalFunded >= firm.maxFunded) {
-            alert(`Max ${firm.maxFunded} funded accounts reached for ${firm.name}!`);
+            toast.warning(`Max ${firm.maxFunded} funded accounts reached for ${firm.name}!`);
             return;
         }
 
@@ -397,6 +425,7 @@ export function DashboardProvider({ children }) {
 
         if (error) {
             console.error('Add account error:', error);
+            toast.error(`Failed to add account: ${error.message}`);
             return;
         }
 
@@ -441,6 +470,7 @@ export function DashboardProvider({ children }) {
 
         if (error) {
             console.error('Update status error:', error);
+            toast.error(`Failed to update status: ${error.message}`);
             return;
         }
 
@@ -479,6 +509,7 @@ export function DashboardProvider({ children }) {
 
         if (error) {
             console.error('Update balance error:', error);
+            toast.error(`Failed to update balance: ${error.message}`);
             return;
         }
 
@@ -500,6 +531,7 @@ export function DashboardProvider({ children }) {
 
         if (error) {
             console.error('Update profit target error:', error);
+            toast.error(`Failed to update profit target: ${error.message}`);
             return;
         }
 
@@ -512,6 +544,8 @@ export function DashboardProvider({ children }) {
     };
 
     const deleteAccount = async (accountTypeId, accountId) => {
+        const accountName = accounts[accountTypeId]?.find(a => a.id === accountId)?.name;
+
         const { error } = await supabase
             .from('accounts')
             .delete()
@@ -519,6 +553,7 @@ export function DashboardProvider({ children }) {
 
         if (error) {
             console.error('Delete account error:', error);
+            toast.error(`Failed to delete account: ${error.message}`);
             return;
         }
 
@@ -526,6 +561,7 @@ export function DashboardProvider({ children }) {
             ...prev,
             [accountTypeId]: (prev[accountTypeId] || []).filter(acc => acc.id !== accountId)
         }));
+        toast.success(`Deleted account: ${accountName}`);
     };
 
     // ============ SETTINGS ============
@@ -594,6 +630,7 @@ export function DashboardProvider({ children }) {
 
         if (error) {
             console.error('Add expense error:', error);
+            toast.error(`Failed to add expense: ${error.message}`);
             return;
         }
 
@@ -607,9 +644,12 @@ export function DashboardProvider({ children }) {
             };
             return [...prev, newExp].sort((a, b) => b.date.localeCompare(a.date));
         });
+        toast.success(`Added expense: $${parseFloat(amount).toFixed(2)}`);
     };
 
     const deleteExpense = async (expenseId) => {
+        const expense = expenses.find(e => e.id === expenseId);
+
         const { error } = await supabase
             .from('expenses')
             .delete()
@@ -617,10 +657,12 @@ export function DashboardProvider({ children }) {
 
         if (error) {
             console.error('Delete expense error:', error);
+            toast.error(`Failed to delete expense: ${error.message}`);
             return;
         }
 
         setExpenses(prev => prev.filter(e => e.id !== expenseId));
+        toast.success(`Deleted expense: $${expense?.amount?.toFixed(2) || '0.00'}`);
     };
 
     // ============ DAILY LOGS ============
@@ -704,6 +746,7 @@ export function DashboardProvider({ children }) {
 
         if (error) {
             console.error('Add goal error:', error);
+            toast.error(`Failed to add goal: ${error.message}`);
             return null;
         }
 
@@ -721,10 +764,13 @@ export function DashboardProvider({ children }) {
         };
 
         setGoals(prev => [...prev, goal]);
+        toast.success(`Added goal: ${goal.title}`);
         return goal;
     };
 
     const deleteGoal = async (goalId) => {
+        const goalTitle = goals.find(g => g.id === goalId)?.title;
+
         const { error } = await supabase
             .from('goals')
             .delete()
@@ -733,10 +779,12 @@ export function DashboardProvider({ children }) {
 
         if (error) {
             console.error('Delete goal error:', error);
+            toast.error(`Failed to delete goal: ${error.message}`);
             return;
         }
 
         setGoals(prev => prev.filter(g => g.id !== goalId));
+        toast.success(`Deleted goal: ${goalTitle}`);
     };
 
     const toggleGoalCompletion = async (goalId, completed) => {

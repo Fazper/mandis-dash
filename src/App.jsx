@@ -1,6 +1,7 @@
 import { BrowserRouter, Routes, Route, NavLink, Navigate } from 'react-router-dom';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { DashboardProvider } from './context/DashboardContext';
+import { ToastProvider } from './context/ToastContext';
 import Login from './components/Login';
 import Header from './components/Header';
 import Dashboard from './components/Dashboard';
@@ -60,9 +61,11 @@ function AppContent() {
 function App() {
     return (
         <AuthProvider>
-            <BrowserRouter basename="/mandis-dash">
-                <AppContent />
-            </BrowserRouter>
+            <ToastProvider>
+                <BrowserRouter basename="/mandis-dash">
+                    <AppContent />
+                </BrowserRouter>
+            </ToastProvider>
         </AuthProvider>
     );
 }
