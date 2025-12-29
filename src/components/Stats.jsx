@@ -1,14 +1,15 @@
 import { useDashboard } from '../context/DashboardContext';
 
 export default function Stats() {
-    const { state, FIRMS, calculateMoneyStats, getTotalPassed } = useDashboard();
+    const { firms, accountTypes, accounts, expenses, calculateMoneyStats, getTotalPassed, calculatePotentialPayout } = useDashboard();
 
     const stats = calculateMoneyStats();
     const totalPassed = getTotalPassed();
-    const potentialPayouts = totalPassed * state.costs.payoutEstimate;
+    const potentialPayouts = calculatePotentialPayout();
 
-    // Calculate pass rate from expenses
-    const totalEvals = Object.values(stats.byFirm).reduce((sum, f) => sum + f.evalCount, 0);
+    // Calculate pass rate from expenses (count eval purchases)
+    const evalExpenses = expenses.filter(e => accountTypes[e.type]);
+    const totalEvals = evalExpenses.length;
     const passRateCalc = totalEvals > 0 ? ((totalPassed / totalEvals) * 100).toFixed(0) : 0;
 
     return (
@@ -35,62 +36,34 @@ export default function Stats() {
                 </div>
             </section>
 
-            <section className="history">
-                <h2>Daily Log</h2>
-                <div className="log-container">
-                    {state.dailyLog && state.dailyLog.length > 0 ? (
-                        state.dailyLog.slice().reverse().map((entry, i) => (
-                            <div key={i} className="log-entry">
-                                <div className="log-date">{entry.date}</div>
-                                <div className="log-details">
-                                    {entry.boughtApex ? '✓ Bought Apex' : '✗ No Apex'} |
-                                    {entry.boughtLucid ? ' ✓ Bought Lucid' : ' ✗ No Lucid'} |
-                                    {entry.tradedOpen ? ' ✓ Traded Open' : ' ✗ Missed Open'} |
-                                    Passed: {entry.accountsPassed}
-                                </div>
-                            </div>
-                        ))
-                    ) : (
-                        <p className="no-log">No daily logs recorded yet. Use "Save Today's Progress" to track your daily activity.</p>
-                    )}
-                </div>
-                <button className="save-btn" onClick={() => alert('Coming soon: Daily log saving')}>
-                    Save Today's Progress
-                </button>
-            </section>
-
             <section className="account-breakdown">
-                <h2>Account Breakdown</h2>
+                <h2>Account Breakdown by Firm</h2>
                 <div className="breakdown-grid">
-                    {Object.values(FIRMS).map(firm => {
-                        const accounts = state.accounts[firm.id] || [];
+                    {Object.values(firms).map(firm => {
+                        // Get all account types for this firm
+                        const firmTypes = Object.values(accountTypes).filter(t => t.firmId === firm.id);
+                        // Get all accounts for this firm's account types
+                        const firmAccounts = firmTypes.flatMap(type => accounts[type.id] || []);
+
                         return (
-                            <div key={firm.id} className={`breakdown-card ${firm.id}`}>
-                                <h4>{firm.name} Accounts</h4>
+                            <div key={firm.id} className={`breakdown-card ${firm.color}`}>
+                                <h4>{firm.name}</h4>
                                 <div className="breakdown-stats">
-                                    {firm.activationCostKey && (
-                                        <div className="breakdown-item">
-                                            <span className="label">Funded</span>
-                                            <span className="value">{accounts.filter(a => a.status === 'funded').length}</span>
-                                        </div>
-                                    )}
+                                    <div className="breakdown-item">
+                                        <span className="label">Funded</span>
+                                        <span className="value">{firmAccounts.filter(a => a.status === 'funded').length}</span>
+                                    </div>
                                     <div className="breakdown-item">
                                         <span className="label">Passed</span>
-                                        <span className="value">{accounts.filter(a => a.status === 'passed').length}</span>
+                                        <span className="value">{firmAccounts.filter(a => a.status === 'passed').length}</span>
                                     </div>
-                                    {firm.hasConsistencyRule && (
-                                        <div className="breakdown-item">
-                                            <span className="label">50%</span>
-                                            <span className="value">{accounts.filter(a => a.status === 'halfway').length}</span>
-                                        </div>
-                                    )}
                                     <div className="breakdown-item">
                                         <span className="label">In Progress</span>
-                                        <span className="value">{accounts.filter(a => a.status === 'in-progress').length}</span>
+                                        <span className="value">{firmAccounts.filter(a => a.status === 'in-progress' || a.status === 'halfway').length}</span>
                                     </div>
                                     <div className="breakdown-item">
                                         <span className="label">Failed</span>
-                                        <span className="value">{accounts.filter(a => a.status === 'failed').length}</span>
+                                        <span className="value">{firmAccounts.filter(a => a.status === 'failed').length}</span>
                                     </div>
                                 </div>
                             </div>
