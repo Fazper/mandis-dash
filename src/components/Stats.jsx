@@ -48,18 +48,24 @@ export default function Stats() {
 
     // Prepare chart data
     const chartData = useMemo(() => {
-        // Monthly expenses data
+        // Monthly expenses data - include ALL expenses
         const monthlyExpenses = {};
-        (expenses || []).forEach(exp => {
-            const month = exp.date.substring(0, 7); // YYYY-MM
-            monthlyExpenses[month] = (monthlyExpenses[month] || 0) + exp.amount;
+        const expensesList = expenses || [];
+
+        expensesList.forEach(exp => {
+            if (exp.date && exp.amount) {
+                const month = exp.date.substring(0, 7); // YYYY-MM
+                monthlyExpenses[month] = (monthlyExpenses[month] || 0) + exp.amount;
+            }
         });
+
         const expensesByMonth = Object.entries(monthlyExpenses)
             .map(([month, amount]) => ({
                 month: new Date(month + '-01').toLocaleDateString('en-US', { month: 'short', year: '2-digit' }),
+                rawMonth: month,
                 amount
             }))
-            .sort((a, b) => a.month.localeCompare(b.month));
+            .sort((a, b) => a.rawMonth.localeCompare(b.rawMonth));
 
         // Account status distribution (all accounts)
         const allAccounts = Object.values(accounts).flat();
@@ -78,26 +84,31 @@ export default function Stats() {
                 color: STATUS_COLORS[status]
             }));
 
-        // Expenses by firm
+        // Expenses by firm - group all expenses, unmatched go to "Other"
         const expensesByFirm = {};
-        (expenses || []).forEach(exp => {
+        expensesList.forEach(exp => {
+            if (!exp.amount) return;
+
             // Check if expense type directly matches an account type
             let matchedType = accountTypes[exp.type];
 
             // If not, check for activation expense pattern
             if (!matchedType) {
-                const activationMatch = exp.type.match(/^(.+)-activation$/);
+                const activationMatch = exp.type?.match(/^(.+)-activation$/);
                 if (activationMatch) {
                     matchedType = accountTypes[activationMatch[1]];
                 }
             }
 
+            let firmName = 'Other';
             if (matchedType) {
                 const firm = firms[matchedType.firmId];
                 if (firm) {
-                    expensesByFirm[firm.name] = (expensesByFirm[firm.name] || 0) + exp.amount;
+                    firmName = firm.name;
                 }
             }
+
+            expensesByFirm[firmName] = (expensesByFirm[firmName] || 0) + exp.amount;
         });
         const firmExpenseData = Object.entries(expensesByFirm)
             .map(([name, amount]) => ({ name, amount }))
