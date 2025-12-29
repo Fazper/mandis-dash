@@ -168,9 +168,7 @@ export default function AccountCard({
                                             <option value="halfway">50% Done</option>
                                         )}
                                         <option value="passed">Passed</option>
-                                        {accountType.activationCost > 0 && (
-                                            <option value="funded">Funded</option>
-                                        )}
+                                        <option value="funded">Funded</option>
                                         <option value="failed">Failed</option>
                                     </select>
                                     <button
