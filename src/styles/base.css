@@ -74,9 +74,44 @@ section h2 {
     width: 100%;
     max-width: 100%;
     overflow-x: hidden;
-    animation: fadeIn var(--transition-slow) ease-out;
 }
 
+/* Page Transition Wrapper */
+.page-transition {
+    width: 100%;
+}
+
+.page-transition.enter {
+    animation: pageEnter 0.25s ease-out forwards;
+}
+
+.page-transition.exit {
+    animation: pageExit 0.15s ease-in forwards;
+}
+
+@keyframes pageEnter {
+    from {
+        opacity: 0;
+        transform: translateX(16px);
+    }
+    to {
+        opacity: 1;
+        transform: translateX(0);
+    }
+}
+
+@keyframes pageExit {
+    from {
+        opacity: 1;
+        transform: translateX(0);
+    }
+    to {
+        opacity: 0;
+        transform: translateX(-16px);
+    }
+}
+
+/* Alternative fade transition */
 @keyframes fadeIn {
     from {
         opacity: 0;

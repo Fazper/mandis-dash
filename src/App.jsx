@@ -1,11 +1,12 @@
 import { useState, useCallback } from 'react';
-import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
+import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { DashboardProvider } from './context/DashboardContext';
 import { ToastProvider } from './context/ToastContext';
 import ErrorBoundary from './components/ErrorBoundary';
 import Login from './components/Login';
 import Sidebar from './components/Sidebar';
+import PageTransition from './components/PageTransition';
 import Dashboard from './components/Dashboard';
 import MoneyTracker from './components/MoneyTracker';
 import Projections from './components/Projections';
@@ -42,17 +43,27 @@ function AppContent() {
                 <Sidebar onExpandChange={handleSidebarChange} />
                 <main className="main-content">
                     <ErrorBoundary>
-                        <Routes>
-                            <Route path="/dashboard" element={<Dashboard />} />
-                            <Route path="/money" element={<MoneyTracker />} />
-                            <Route path="/projections" element={<Projections />} />
-                            <Route path="/stats" element={<Stats />} />
-                            <Route path="*" element={<Navigate to="/dashboard" replace />} />
-                        </Routes>
+                        <AnimatedRoutes />
                     </ErrorBoundary>
                 </main>
             </div>
         </DashboardProvider>
+    );
+}
+
+function AnimatedRoutes() {
+    const location = useLocation();
+
+    return (
+        <PageTransition key={location.pathname}>
+            <Routes location={location}>
+                <Route path="/dashboard" element={<Dashboard />} />
+                <Route path="/money" element={<MoneyTracker />} />
+                <Route path="/projections" element={<Projections />} />
+                <Route path="/stats" element={<Stats />} />
+                <Route path="*" element={<Navigate to="/dashboard" replace />} />
+            </Routes>
+        </PageTransition>
     );
 }
 
