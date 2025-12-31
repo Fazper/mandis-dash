@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import Modal from '../Modal';
 
 export default function AccountCard({
     accountType,
@@ -24,6 +25,7 @@ export default function AccountCard({
     const [balanceInput, setBalanceInput] = useState('');
     const [editingTarget, setEditingTarget] = useState(null);
     const [targetInput, setTargetInput] = useState('');
+    const [deleteConfirm, setDeleteConfirm] = useState(null);
 
     const halfway = accounts.filter(a => a.status === 'halfway').length;
     const passed = accounts.filter(a => a.status === 'passed').length;
@@ -181,7 +183,7 @@ export default function AccountCard({
                                     </select>
                                     <button
                                         className="delete-account-btn"
-                                        onClick={() => onDelete(acc.id)}
+                                        onClick={() => setDeleteConfirm(acc)}
                                         title="Delete account"
                                     >
                                         ×
@@ -249,6 +251,38 @@ export default function AccountCard({
                 </div>
             ) : (
                 <button onClick={() => setShowAddForm(true)} disabled={atFirmLimit}>+ Add Account</button>
+            )}
+
+            {deleteConfirm && (
+                <Modal onClose={() => setDeleteConfirm(null)}>
+                    <div className="delete-confirm-modal">
+                        <h3>Delete Account?</h3>
+                        <p className="warning-text">
+                            Are you sure you want to delete this account?
+                        </p>
+                        <div className="accounts-to-delete">
+                            <div className="acc-row">
+                                <span className="acc-name">{deleteConfirm.name}</span>
+                                <span className={`acc-status ${deleteConfirm.status}`}>{deleteConfirm.status}</span>
+                                {deleteConfirm.evalCost > 0 && <span className="acc-cost">${deleteConfirm.evalCost}</span>}
+                            </div>
+                        </div>
+                        <p className="warning-note">This action cannot be undone.</p>
+                        <div className="form-actions">
+                            <button type="button" className="cancel-btn" onClick={() => setDeleteConfirm(null)}>Cancel</button>
+                            <button
+                                type="button"
+                                className="delete-confirm-btn"
+                                onClick={() => {
+                                    onDelete(deleteConfirm.id);
+                                    setDeleteConfirm(null);
+                                }}
+                            >
+                                Delete Account
+                            </button>
+                        </div>
+                    </div>
+                </Modal>
             )}
         </div>
     );
