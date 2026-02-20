@@ -172,9 +172,10 @@ export function RuinCurvesTab() {
 }
 
 export function EquitySimTab() {
-  const eq1500 = generateEquityCurve(1500, 0.57, 1.5, 0, 30);
-  const eq1000 = generateEquityCurve(1000, 0.57, 1.5, 0, 30);
-  const eq500 = generateEquityCurve(500, 0.57, 1.5, 0, 30);
+  const SEED = 42;
+  const eq1500 = generateEquityCurve(1500, 0.57, 1.5, 0, 30, SEED);
+  const eq1000 = generateEquityCurve(1000, 0.57, 1.5, 0, 30, SEED);
+  const eq500 = generateEquityCurve(500, 0.57, 1.5, 0, 30, SEED);
   const equityData = eq1500.map((p, i) => ({
     trade: p.trade,
     '$1,500R': p.balance,

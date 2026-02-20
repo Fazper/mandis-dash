@@ -150,10 +150,10 @@ export function calcScenario(s) {
   };
 }
 
-export function generateEquityCurve(rPerTrade, winRate, rr, startBalance, numTrades) {
+export function generateEquityCurve(rPerTrade, winRate, rr, startBalance, numTrades, customSeed) {
   const points = [{ trade: 0, balance: startBalance }];
   let balance = startBalance;
-  let seed = rPerTrade;
+  let seed = customSeed ?? rPerTrade;
   const rand = () => { seed = (seed * 16807 + 0) % 2147483647; return seed / 2147483647; };
   for (let i = 1; i <= numTrades; i++) {
     const win = rand() < winRate;
