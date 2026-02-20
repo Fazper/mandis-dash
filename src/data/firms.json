@@ -1,0 +1,24 @@
+[
+  {
+    "id": "tradeify-150k-select",
+    "name": "Tradeify 150K Select",
+    "shortName": "150K Select",
+    "challengeCost": 215,
+    "profitTarget": 9000,
+    "eodDrawdown": 4500,
+    "payoutCap": 5000,
+    "withdrawalPct": 50,
+    "platformSplit": 10
+  },
+  {
+    "id": "tradeify-50k-select",
+    "name": "Tradeify 50K Select",
+    "shortName": "50K Select",
+    "challengeCost": 109,
+    "profitTarget": 3000,
+    "eodDrawdown": 2000,
+    "payoutCap": 2000,
+    "withdrawalPct": 50,
+    "platformSplit": 10
+  }
+]
