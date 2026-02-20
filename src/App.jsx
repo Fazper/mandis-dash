@@ -13,6 +13,7 @@ import Projections from './components/Projections';
 import Stats from './components/Stats';
 import Settings from './components/Settings';
 import Profile from './components/Profile';
+import PropFirmCalculator from './components/calculator/PropFirmCalculator';
 import './App.css';
 
 function AppContent() {
@@ -64,6 +65,7 @@ function AnimatedRoutes() {
                 <Route path="/projections" element={<Projections />} />
                 <Route path="/stats" element={<Stats />} />
                 <Route path="/settings" element={<Settings />} />
+                <Route path="/calculator" element={<PropFirmCalculator />} />
                 <Route path="/profile" element={<Profile />} />
                 <Route path="*" element={<Navigate to="/dashboard" replace />} />
             </Routes>

@@ -1,0 +1,53 @@
+[
+  {
+    "name": "Aggressive ($1500R)",
+    "short": "Aggressive",
+    "rChallenge": 1500,
+    "rFunded": 1500,
+    "challengeCost": 215,
+    "profitTarget": 9000,
+    "eodDD": 4500,
+    "payoutCap": 5000,
+    "splitPct": 0.10,
+    "winRate": 0.57,
+    "rr": 1.5,
+    "tradesPerDay": 2,
+    "dailyLossStop": 2,
+    "passRate": 0.675,
+    "fundedSurvival": 0.75
+  },
+  {
+    "name": "Balanced ($1000R)",
+    "short": "Balanced",
+    "rChallenge": 1500,
+    "rFunded": 1000,
+    "challengeCost": 215,
+    "profitTarget": 9000,
+    "eodDD": 4500,
+    "payoutCap": 5000,
+    "splitPct": 0.10,
+    "winRate": 0.57,
+    "rr": 1.5,
+    "tradesPerDay": 2,
+    "dailyLossStop": 2,
+    "passRate": 0.675,
+    "fundedSurvival": 0.85
+  },
+  {
+    "name": "Conservative ($500R)",
+    "short": "Conservative",
+    "rChallenge": 500,
+    "rFunded": 500,
+    "challengeCost": 215,
+    "profitTarget": 9000,
+    "eodDD": 4500,
+    "payoutCap": 5000,
+    "splitPct": 0.10,
+    "winRate": 0.57,
+    "rr": 1.5,
+    "tradesPerDay": 2,
+    "dailyLossStop": 2,
+    "passRate": 0.675,
+    "fundedSurvival": 0.95
+  }
+]

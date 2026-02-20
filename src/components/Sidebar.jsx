@@ -6,6 +6,7 @@ const navItems = [
     { path: '/dashboard', label: 'Dashboard', icon: '📊' },
     { path: '/money', label: 'Money', icon: '💰' },
     { path: '/projections', label: 'Projections', icon: '📈' },
+    { path: '/calculator', label: 'Calculator', icon: '🧮' },
     { path: '/stats', label: 'Stats & Log', icon: '📋' },
     { path: '/settings', label: 'Settings', icon: '⚙️' }
 ];
